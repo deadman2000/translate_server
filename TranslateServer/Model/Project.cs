@@ -1,18 +1,20 @@
-﻿using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-
-namespace TranslateServer.Model
+﻿namespace TranslateServer.Model
 {
-    public class Project
+    public class Project : Document
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
-
         public string Name { get; set; }
 
         public string ShortName { get; set; }
 
-        public bool Uploaded { get; set; }
+        public ProjectStatus Status { get; set; }
+    }
+
+    public enum ProjectStatus
+    {
+        New = 0,
+        Processing = 1,
+        Working = 2,
+        Completed = 3,
+        Error = 4,
     }
 }

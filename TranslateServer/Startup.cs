@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TranslateServer.Hosted;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
 
@@ -29,8 +30,14 @@ namespace TranslateServer
                                   });
             });
 
+            services.Configure<ServerConfig>(Configuration.GetSection("Server"));
+
             services.AddScoped<MongoService>();
-            services.AddScoped<ProjectService>();
+            services.AddScoped<ProjectsService>();
+            services.AddScoped<ResourcesService>();
+            services.AddScoped<VolumesService>();
+
+            services.AddHostedService<ResourceExtractor>();
 
             services.AddControllers();
         }

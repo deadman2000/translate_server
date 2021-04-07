@@ -4,20 +4,13 @@ using System;
 
 namespace TranslateServer.Model
 {
-    public class TextTranslate
+    public class TextTranslate : Document
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
-
-        [BsonRepresentation(BsonType.ObjectId)]
         public string Project { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Volume { get; set; }
+        public string Resource { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string TextId { get; set; }
+        public int Number { get; set; }
 
         public string Author { get; set; }
 

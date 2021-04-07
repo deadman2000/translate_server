@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
+using TranslateServer.Helpers;
 using TranslateServer.Model;
 using TranslateServer.Services;
 
@@ -14,17 +16,19 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class ProjectsController : ApiController
     {
-        private readonly ProjectService _project;
+        private readonly ProjectsService _project;
+        private readonly ServerConfig _config;
 
-        public ProjectsController(ProjectService project)
+        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsService project)
         {
             _project = project;
+            _config = opConfig.Value;
         }
 
         [HttpGet]
         public async Task<ActionResult> GetList()
         {
-            var list = await _project.GetProjects();
+            var list = await _project.All();
             return Ok(list);
         }
 
@@ -44,7 +48,7 @@ namespace TranslateServer.Controllers
                 ShortName = request.ShortName,
             };
 
-            await _project.Create(project);
+            await _project.Insert(project);
 
             return Ok(project);
         }
@@ -70,21 +74,24 @@ namespace TranslateServer.Controllers
                 if (mapEntry == null)
                     return ApiBadRequest("RESOURCE.MAP file not found");
 
+                string targetDir = Path.GetFullPath($"{_config.ProjectsDir}/{shortName}/");
+                Console.WriteLine(targetDir);
+                if (Directory.Exists(targetDir))
+                    Directory.Delete(targetDir, true);
+
+                Directory.CreateDirectory(targetDir);
+
                 if (mapEntry.FullName.Length != mapEntry.Name.Length)
                 {
                     var dir = mapEntry.FullName.Substring(0, mapEntry.FullName.Length - mapEntry.Name.Length);
-                    var dirEntry = archive.Entries.FirstOrDefault(d => d.FullName == dir);
-                    if (dirEntry != null)
-                    {
-                        dirEntry.ExtractToFile("game");
-                    }
-                    Console.WriteLine(dir);
+                    archive.ExtractSubDir(targetDir, dir);
+                }
+                else
+                {
+                    archive.ExtractToDirectory(targetDir);
                 }
 
-                /*foreach (var e in archive.Entries)
-                {
-                    Console.WriteLine(e.FullName);
-                }*/
+                await _project.Update(shortName).Set(p => p.Status, ProjectStatus.Processing).Execute();
             }
             catch (InvalidDataException)
             {
@@ -94,5 +101,4 @@ namespace TranslateServer.Controllers
             return Ok();
         }
     }
-
 }

@@ -1,28 +1,18 @@
-﻿using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using MongoDB.Bson.Serialization.Attributes;
 
 namespace TranslateServer.Model
 {
-    public class TextResource
+    public class TextResource : Document
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
-
-        [BsonRepresentation(BsonType.ObjectId)]
         public string Project { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
         public string Volume { get; set; }
 
-        public int Order { get; set; }
+        public int Number { get; set; }
 
         public string Text { get; set; }
 
-        public int Talker { get; set; }
+        [BsonIgnoreIfNull]
+        public int? Talker { get; set; }
     }
 }

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="MongoDB.Driver" Version="2.12.0" />
+    <PackageReference Include="SCI_Lib" Version="1.0.0" />
   </ItemGroup>
 
 </Project>
