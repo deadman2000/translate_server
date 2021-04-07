@@ -67,8 +67,8 @@ namespace TranslateServer.Hosted
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
-                    await projects
-                        .Update(p => p.Id == project.Id).Set(p => p.Status, ProjectStatus.Error)
+                    await projects.Update(p => p.Id == project.Id)
+                        .Set(p => p.Status, ProjectStatus.Error)
                         .Execute();
                 }
             }
