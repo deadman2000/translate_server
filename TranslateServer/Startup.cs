@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -29,6 +30,8 @@ namespace TranslateServer
                                       builder.WithOrigins("http://localhost:3000");
                                   });
             });
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie();
 
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));
 
@@ -36,6 +39,7 @@ namespace TranslateServer
             services.AddScoped<ProjectsService>();
             services.AddScoped<TextsService>();
             services.AddScoped<VolumesService>();
+            services.AddScoped<UsersService>();
 
             services.AddHostedService<ResourceExtractor>();
 
@@ -52,6 +56,7 @@ namespace TranslateServer
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

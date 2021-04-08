@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Linq;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using TranslateServer.Services;
 
 namespace TranslateServer.Controllers
 {
+    [Authorize]
     [Route("api/projects/{project}/[controller]")]
     [ApiController]
     public class VolumesController : ApiController
