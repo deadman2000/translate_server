@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -30,24 +31,27 @@ namespace TranslateServer.Controllers
             if (cnt > 0)
                 return ApiBadRequest("Database is not empty");
 
-            var user = new User
+            var user = new UserDocument
             {
                 Login = "admin",
-                Role = "Admin"
+                Role = UserDocument.ADMIN
             };
             user.SetPassword("admin");
             await _users.Insert(user);
 
-            return Ok();
+            return Ok("success");
         }
 
         [HttpGet("me")]
         [Authorize]
-        public async Task<ActionResult> Me()
+        public ActionResult Me()
         {
+            var role = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).FirstOrDefault();
+
             return Ok(new
             {
-                Login = User.Identity.Name
+                Login = User.Identity.Name,
+                Role = role
             });
         }
 

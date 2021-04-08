@@ -41,6 +41,7 @@ namespace TranslateServer.Controllers
             public string Code { get; set; }
         }
 
+        [Authorize(Roles = UserDocument.ADMIN)]
         [HttpPost("create")]
         public async Task<ActionResult> CreateProject([FromBody] CreateProjectRequest request)
         {
