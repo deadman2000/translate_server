@@ -86,10 +86,10 @@ namespace TranslateServer.Hosted
             var package = SCIPackage.Load(gameDir);
 
             var scope = _serviceProvider.CreateScope();
-            var resources = scope.ServiceProvider.GetService<ResourcesService>();
+            var texts = scope.ServiceProvider.GetService<TextsService>();
             var volumes = scope.ServiceProvider.GetService<VolumesService>();
 
-            await resources.Delete(r => r.Project == project.ShortName);
+            await texts.Delete(r => r.Project == project.ShortName);
             await volumes.Delete(v => v.Project == project.ShortName);
 
             foreach (var txt in package.GetResouces<ResText>())
@@ -105,7 +105,7 @@ namespace TranslateServer.Hosted
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await resources.Insert(new TextResource(project, txt.FileName, i, strings[i]));
+                    await texts.Insert(new TextResource(project, txt.FileName, i, strings[i]));
                 }
             }
 
@@ -122,7 +122,7 @@ namespace TranslateServer.Hosted
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await resources.Insert(new TextResource(project, scr.FileName, i, strings[i]));
+                    await texts.Insert(new TextResource(project, scr.FileName, i, strings[i]));
                 }
             }
 
@@ -141,14 +141,14 @@ namespace TranslateServer.Hosted
                 for (int i = 0; i < records.Count; i++)
                 {
                     var r = records[i];
-                    await resources.Insert(new TextResource(project, msg.FileName, i, r.Text, r.Talker));
+                    await texts.Insert(new TextResource(project, msg.FileName, i, r.Text, r.Talker));
                 }
             }
 
             var volList = await volumes.Query(v => v.Project == project.ShortName);
             foreach (var vol in volList)
             {
-                var res = await resources.Collection.Aggregate()
+                var res = await texts.Collection.Aggregate()
                     .Match(t => t.Project == project.ShortName && t.Volume == vol.Name)
                     .Group(t => t.Volume,
                     g => new

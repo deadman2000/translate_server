@@ -38,6 +38,11 @@ namespace TranslateServer.Services
             return cursor.ToEnumerable();
         }
 
+        public MongoQuery<T> Query()
+        {
+            return new MongoQuery<T>(_collection);
+        }
+
         public Task Insert(T doc)
         {
             return _collection.InsertOneAsync(doc);

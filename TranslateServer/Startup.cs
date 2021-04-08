@@ -34,7 +34,7 @@ namespace TranslateServer
 
             services.AddScoped<MongoService>();
             services.AddScoped<ProjectsService>();
-            services.AddScoped<ResourcesService>();
+            services.AddScoped<TextsService>();
             services.AddScoped<VolumesService>();
 
             services.AddHostedService<ResourceExtractor>();
