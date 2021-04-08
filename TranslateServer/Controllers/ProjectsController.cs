@@ -36,7 +36,7 @@ namespace TranslateServer.Controllers
         {
             public string Name { get; set; }
 
-            public string ShortName { get; set; }
+            public string Code { get; set; }
         }
 
         [HttpPost("create")]
@@ -45,7 +45,7 @@ namespace TranslateServer.Controllers
             var project = new Project
             {
                 Name = request.Name,
-                ShortName = request.ShortName,
+                Code = request.Code,
             };
 
             await _project.Insert(project);

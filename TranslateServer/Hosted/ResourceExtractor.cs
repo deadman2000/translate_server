@@ -60,14 +60,14 @@ namespace TranslateServer.Hosted
             {
                 try
                 {
-                    Console.WriteLine($"Extract resources {project.ShortName}");
+                    Console.WriteLine($"Extract resources {project.Code}");
                     await Process(projects, project);
 
                     await projects.Update(p => p.Id == project.Id)
                         .Set(p => p.Status, ProjectStatus.Working)
                         .Execute();
 
-                    Console.WriteLine($"Project {project.ShortName} resources extracted");
+                    Console.WriteLine($"Project {project.Code} resources extracted");
                 }
                 catch (Exception ex)
                 {
@@ -82,30 +82,27 @@ namespace TranslateServer.Hosted
 
         private async Task Process(ProjectsService projects, Project project)
         {
-            var gameDir = $"{_config.ProjectsDir}/{project.ShortName}/";
+            var gameDir = $"{_config.ProjectsDir}/{project.Code}/";
             var package = SCIPackage.Load(gameDir);
 
             var scope = _serviceProvider.CreateScope();
             var texts = scope.ServiceProvider.GetService<TextsService>();
             var volumes = scope.ServiceProvider.GetService<VolumesService>();
 
-            await texts.Delete(r => r.Project == project.ShortName);
-            await volumes.Delete(v => v.Project == project.ShortName);
+            await texts.Delete(r => r.Project == project.Code);
+            await volumes.Delete(v => v.Project == project.Code);
 
             foreach (var txt in package.GetResouces<ResText>())
             {
                 var strings = txt.GetStrings();
                 if (strings.Length == 0) continue;
 
-                await volumes.Insert(new Volume
-                {
-                    Project = project.ShortName,
-                    Name = txt.FileName
-                });
+                var volume = new Volume(project, txt.FileName);
+                await volumes.Insert(volume);
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await texts.Insert(new TextResource(project, txt.FileName, i, strings[i]));
+                    await texts.Insert(new TextResource(project, volume, i, strings[i]));
                 }
             }
 
@@ -114,15 +111,12 @@ namespace TranslateServer.Hosted
                 var strings = scr.GetStrings();
                 if (strings == null || strings.Length == 0) continue;
 
-                await volumes.Insert(new Volume
-                {
-                    Project = project.ShortName,
-                    Name = scr.FileName
-                });
+                var volume = new Volume(project, scr.FileName);
+                await volumes.Insert(volume);
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await texts.Insert(new TextResource(project, scr.FileName, i, strings[i]));
+                    await texts.Insert(new TextResource(project, volume, i, strings[i]));
                 }
             }
 
@@ -132,24 +126,21 @@ namespace TranslateServer.Hosted
                 var records = msg.GetMessages();
                 if (records.Count == 0) continue;
 
-                await volumes.Insert(new Volume
-                {
-                    Project = project.ShortName,
-                    Name = msg.FileName
-                });
+                var volume = new Volume(project, msg.FileName);
+                await volumes.Insert(volume);
 
                 for (int i = 0; i < records.Count; i++)
                 {
                     var r = records[i];
-                    await texts.Insert(new TextResource(project, msg.FileName, i, r.Text, r.Talker));
+                    await texts.Insert(new TextResource(project, volume, i, r.Text, r.Talker));
                 }
             }
 
-            var volList = await volumes.Query(v => v.Project == project.ShortName);
+            var volList = await volumes.Query(v => v.Project == project.Code);
             foreach (var vol in volList)
             {
                 var res = await texts.Collection.Aggregate()
-                    .Match(t => t.Project == project.ShortName && t.Volume == vol.Name)
+                    .Match(t => t.Project == project.Code && t.Volume == vol.Code)
                     .Group(t => t.Volume,
                     g => new
                     {
@@ -164,7 +155,7 @@ namespace TranslateServer.Hosted
 
             {
                 var res = await volumes.Collection.Aggregate()
-                    .Match(v => v.Project == project.ShortName)
+                    .Match(v => v.Project == project.Code)
                     .Group(v => v.Project,
                     g => new
                     {

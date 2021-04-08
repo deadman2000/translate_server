@@ -20,13 +20,13 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Get(string project)
         {
             var volumes = await _volumes.Query(v => v.Project == project);
-            return Ok(volumes.Select(v => new { v.Name }));
+            return Ok(volumes);
         }
 
         [HttpGet("{volume}")]
         public async Task<ActionResult> Get(string project, string volume)
         {
-            var vol = await _volumes.Get(v => v.Project == project && v.Name == volume);
+            var vol = await _volumes.Get(v => v.Project == project && v.Code == volume);
             return Ok(vol);
         }
     }

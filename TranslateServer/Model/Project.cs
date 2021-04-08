@@ -6,7 +6,7 @@ namespace TranslateServer.Model
     {
         public string Name { get; set; }
 
-        public string ShortName { get; set; }
+        public string Code { get; set; }
 
         public ProjectStatus Status { get; set; }
 

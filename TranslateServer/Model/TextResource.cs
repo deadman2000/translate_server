@@ -9,10 +9,10 @@ namespace TranslateServer.Model
         {
         }
 
-        public TextResource(Project project, string volume, int number, string text, int? talker = null)
+        public TextResource(Project project, Volume volume, int number, string text, int? talker = null)
         {
-            Project = project.ShortName;
-            Volume = volume;
+            Project = project.Code;
+            Volume = volume.Code;
             Number = number;
             Text = text;
             Talker = talker;

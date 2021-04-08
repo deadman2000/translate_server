@@ -8,7 +8,7 @@ namespace TranslateServer.Model
     {
         public string Project { get; set; }
 
-        public string Resource { get; set; }
+        public string Volume { get; set; }
 
         public int Number { get; set; }
 
