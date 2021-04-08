@@ -18,6 +18,8 @@ namespace TranslateServer.Services
             _collection = mongo.Database.GetCollection<T>(collectionName);
         }
 
+        public IMongoCollection<T> Collection => _collection;
+
         public async Task<T> Get(Expression<Func<T, bool>> filter)
         {
             var cursor = await _collection.FindAsync(filter);

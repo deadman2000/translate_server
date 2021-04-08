@@ -1,4 +1,6 @@
-﻿namespace TranslateServer.Model
+﻿using MongoDB.Bson.Serialization.Attributes;
+
+namespace TranslateServer.Model
 {
     public class Project : Document
     {
@@ -7,6 +9,11 @@
         public string ShortName { get; set; }
 
         public ProjectStatus Status { get; set; }
+
+        [BsonIgnoreIfNull]
+        public string Error { get; set; }
+
+        public int NumberOfLetters { get; set; }
     }
 
     public enum ProjectStatus

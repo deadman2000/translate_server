@@ -8,6 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using System.Text.RegularExpressions;
+using MongoDB.Driver;
+using System.Linq;
 
 namespace TranslateServer.Hosted
 {
@@ -58,10 +61,12 @@ namespace TranslateServer.Hosted
                 try
                 {
                     Console.WriteLine($"Extract resources {project.ShortName}");
-                    await Process(project);
+                    await Process(projects, project);
+
                     await projects.Update(p => p.Id == project.Id)
                         .Set(p => p.Status, ProjectStatus.Working)
                         .Execute();
+
                     Console.WriteLine($"Project {project.ShortName} resources extracted");
                 }
                 catch (Exception ex)
@@ -69,12 +74,13 @@ namespace TranslateServer.Hosted
                     Console.WriteLine(ex);
                     await projects.Update(p => p.Id == project.Id)
                         .Set(p => p.Status, ProjectStatus.Error)
+                        .Set(p => p.Error, ex.ToString())
                         .Execute();
                 }
             }
         }
 
-        private async Task Process(Project project)
+        private async Task Process(ProjectsService projects, Project project)
         {
             var gameDir = $"{_config.ProjectsDir}/{project.ShortName}/";
             var package = SCIPackage.Load(gameDir);
@@ -92,20 +98,14 @@ namespace TranslateServer.Hosted
                 if (strings.Length == 0) continue;
 
                 await volumes.Insert(new Volume
-                { 
+                {
                     Project = project.ShortName,
                     Name = txt.FileName
                 });
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await resources.Insert(new TextResource
-                    {
-                        Project = project.ShortName,
-                        Volume = txt.FileName,
-                        Number = i,
-                        Text = strings[i],
-                    });
+                    await resources.Insert(new TextResource(project, txt.FileName, i, strings[i]));
                 }
             }
 
@@ -122,13 +122,7 @@ namespace TranslateServer.Hosted
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await resources.Insert(new TextResource
-                    {
-                        Project = project.ShortName,
-                        Volume = scr.FileName,
-                        Number = i,
-                        Text = strings[i],
-                    });
+                    await resources.Insert(new TextResource(project, scr.FileName, i, strings[i]));
                 }
             }
 
@@ -147,16 +141,42 @@ namespace TranslateServer.Hosted
                 for (int i = 0; i < records.Count; i++)
                 {
                     var r = records[i];
-                    await resources.Insert(new TextResource
-                    {
-                        Project = project.ShortName,
-                        Volume = msg.FileName,
-                        Number = i,
-                        Text = r.Text,
-                        Talker = r.Talker
-                    });
+                    await resources.Insert(new TextResource(project, msg.FileName, i, r.Text, r.Talker));
                 }
             }
+
+            var volList = await volumes.Query(v => v.Project == project.ShortName);
+            foreach (var vol in volList)
+            {
+                var res = await resources.Collection.Aggregate()
+                    .Match(t => t.Project == project.ShortName && t.Volume == vol.Name)
+                    .Group(t => t.Volume,
+                    g => new
+                    {
+                        Total = g.Sum(t => t.NumberOfLetters)
+                    })
+                    .FirstOrDefaultAsync();
+
+                await volumes.Update(v => v.Id == vol.Id)
+                    .Set(v => v.NumberOfLetters, res.Total)
+                    .Execute();
+            }
+
+            {
+                var res = await volumes.Collection.Aggregate()
+                    .Match(v => v.Project == project.ShortName)
+                    .Group(v => v.Project,
+                    g => new
+                    {
+                        Total = g.Sum(t => t.NumberOfLetters)
+                    })
+                    .FirstOrDefaultAsync();
+
+                await projects.Update(p => p.Id == project.Id)
+                    .Set(p => p.NumberOfLetters, res.Total)
+                    .Execute();
+            }
         }
+
     }
 }

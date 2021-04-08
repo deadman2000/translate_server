@@ -5,5 +5,7 @@
         public string Project { get; set; }
 
         public string Name { get; set; }
+
+        public int NumberOfLetters { get; set; }
     }
 }
