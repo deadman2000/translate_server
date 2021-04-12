@@ -26,5 +26,15 @@ namespace TranslateServer.Controllers
                 .Execute();
             return Ok(list);
         }
+
+        [HttpPost("{num}")]
+        public async Task<ActionResult> SubmitTranslate(string project, string volume, int num)
+        {
+            var list = await _texts.Query()
+                .Where(t => t.Project == project && t.Volume == volume)
+                .SortAsc(t => t.Number)
+                .Execute();
+            return Ok(list);
+        }
     }
 }

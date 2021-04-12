@@ -19,11 +19,7 @@ namespace TranslateServer.Model
         public string Text { get; set; }
 
         [BsonRepresentation(BsonType.ObjectId)]
-        public string PrevId { get; set; }
-
-        public bool Current { get; set; }
-
-        public bool Correction { get; set; }
+        public string NextId { get; set; }
 
         public bool Deleted { get; set; }
     }

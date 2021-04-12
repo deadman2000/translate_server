@@ -32,8 +32,6 @@ namespace TranslateServer
                                       builder.WithOrigins("http://localhost:3000");
                                   });
             });
-            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                .AddCookie();
 
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(o => {
@@ -47,10 +45,11 @@ namespace TranslateServer
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));
 
             services.AddScoped<MongoService>();
-            services.AddScoped<ProjectsService>();
-            services.AddScoped<TextsService>();
-            services.AddScoped<VolumesService>();
             services.AddScoped<UsersService>();
+            services.AddScoped<ProjectsService>();
+            services.AddScoped<VolumesService>();
+            services.AddScoped<TextsService>();
+            services.AddScoped<TranslateService>();
 
             services.AddHostedService<ResourceExtractor>();
 
