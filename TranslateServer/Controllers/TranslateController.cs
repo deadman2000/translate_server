@@ -35,15 +35,13 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Submit([FromBody] SubmitRequest request)
         {
-            var login = User.Identity.Name;
-
             TextTranslate translate = new()
             {
                 Project = request.Project,
                 Volume = request.Volume,
                 Number = request.Number,
                 Text = request.Text,
-                Author = login,
+                Author = UserLogin,
                 DateCreate = DateTime.UtcNow,
             };
 
@@ -52,7 +50,7 @@ namespace TranslateServer.Controllers
             await _translate.Update(t => t.Project == request.Project
                                       && t.Volume == request.Volume
                                       && t.Number == request.Number
-                                      && t.Author == login
+                                      && t.Author == UserLogin
                                       && t.Id != translate.Id
                                       && t.NextId == null
                                       && !t.Deleted)

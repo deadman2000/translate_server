@@ -50,7 +50,7 @@ namespace TranslateServer.Controllers
 
             return Ok(new
             {
-                Login = User.Identity.Name,
+                Login = UserLogin,
                 Role = role
             });
         }
