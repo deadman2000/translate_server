@@ -1,16 +1,15 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using SCI_Lib;
 using SCI_Lib.Resources;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
-using System.Text.RegularExpressions;
-using MongoDB.Driver;
-using System.Linq;
 
 namespace TranslateServer.Hosted
 {
@@ -144,12 +143,14 @@ namespace TranslateServer.Hosted
                     .Group(t => t.Volume,
                     g => new
                     {
-                        Total = g.Sum(t => t.NumberOfLetters)
+                        Total = g.Sum(t => t.Letters),
+                        Count = g.Count()
                     })
                     .FirstOrDefaultAsync();
 
                 await volumes.Update(v => v.Id == vol.Id)
-                    .Set(v => v.NumberOfLetters, res.Total)
+                    .Set(v => v.Letters, res.Total)
+                    .Set(v => v.Texts, res.Count)
                     .Execute();
             }
 
@@ -159,12 +160,14 @@ namespace TranslateServer.Hosted
                     .Group(v => v.Project,
                     g => new
                     {
-                        Total = g.Sum(t => t.NumberOfLetters)
+                        Total = g.Sum(t => t.Letters),
+                        Count = g.Sum(t => t.Texts)
                     })
                     .FirstOrDefaultAsync();
 
                 await projects.Update(p => p.Id == project.Id)
-                    .Set(p => p.NumberOfLetters, res.Total)
+                    .Set(p => p.Letters, res.Total)
+                    .Set(p => p.Texts, res.Count)
                     .Execute();
             }
         }

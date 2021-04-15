@@ -35,5 +35,10 @@ namespace TranslateServer.Helpers
         {
             return _collection.UpdateOneAsync(_filter, _update);
         }
+
+        public Task ExecuteMany()
+        {
+            return _collection.UpdateManyAsync(_filter, _update);
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
+using System;
 
 namespace TranslateServer.Model
 {
@@ -13,7 +14,15 @@ namespace TranslateServer.Model
         [BsonIgnoreIfNull]
         public string Error { get; set; }
 
-        public int NumberOfLetters { get; set; }
+        public int Letters { get; set; }
+
+        public int Texts { get; set; }
+
+        public DateTime LastSubmit { get; set; }
+
+        public int TranslatedLetters { get; set; }
+
+        public int TranslatedTexts { get; set; }
     }
 
     public enum ProjectStatus

@@ -16,7 +16,7 @@ namespace TranslateServer.Model
             Number = number;
             Text = text;
             Talker = talker;
-            NumberOfLetters = CalcLetters(text);
+            Letters = CalcLetters(text);
         }
 
         public string Project { get; set; }
@@ -30,7 +30,7 @@ namespace TranslateServer.Model
         [BsonIgnoreIfNull]
         public int? Talker { get; set; }
 
-        public int NumberOfLetters { get; set; }
+        public int Letters { get; set; }
 
 
         private static readonly Regex NotLetters = new("[^\\w]");
@@ -39,5 +39,7 @@ namespace TranslateServer.Model
         {
             return NotLetters.Replace(text, "").Length;
         }
+
+        public bool HasTranslate { get; set; }
     }
 }

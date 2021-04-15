@@ -1,4 +1,6 @@
-﻿namespace TranslateServer.Model
+﻿using System;
+
+namespace TranslateServer.Model
 {
     public class Volume : Document
     {
@@ -19,6 +21,14 @@
 
         public string Name { get; set; }
 
-        public int NumberOfLetters { get; set; }
+        public int Letters { get; set; }
+
+        public int Texts { get; set; }
+
+        public DateTime LastSubmit { get; set; }
+
+        public int TranslatedTexts { get; set; }
+
+        public int TranslatedLetters { get; set; }
     }
 }

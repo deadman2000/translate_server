@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -15,10 +15,16 @@ namespace TranslateServer.Controllers
     public class TranslateController : ApiController
     {
         private readonly TranslateService _translate;
+        private readonly TextsService _texts;
+        private readonly VolumesService _volumes;
+        private readonly ProjectsService _projects;
 
-        public TranslateController(TranslateService translate)
+        public TranslateController(TranslateService translate, TextsService texts, VolumesService volumes, ProjectsService projects)
         {
             _translate = translate;
+            _texts = texts;
+            _volumes = volumes;
+            _projects = projects;
         }
 
         public class SubmitRequest
@@ -35,6 +41,10 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Submit([FromBody] SubmitRequest request)
         {
+            var txt = await _texts.Get(t => t.Project == request.Project && t.Volume == request.Volume && t.Number == request.Number);
+            if (txt == null)
+                return NotFound();
+
             TextTranslate translate = new()
             {
                 Project = request.Project,
@@ -57,7 +67,83 @@ namespace TranslateServer.Controllers
                 .Set(t => t.NextId, translate.Id)
                 .Execute();
 
+            if (!txt.HasTranslate)
+            {
+                await _texts.Update(t => t.Id == txt.Id).Set(t => t.HasTranslate, true).Execute();
+
+                await UpdateVolumeProgress(request.Project, request.Volume);
+            }
+
+            await _volumes.Update(v => v.Project == request.Project && v.Code == request.Volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
+            await _projects.Update(p => p.Code == request.Project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();
+
             return Ok();
+        }
+
+        [HttpDelete("{project}/{volume}/{number}")]
+        public async Task<ActionResult> Delete(string project, string volume, int number)
+        {
+            var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
+            if (txt == null)
+                return NotFound();
+
+            await _translate.Update(t => t.Project == project
+                                      && t.Volume == volume
+                                      && t.Number == number
+                                      && t.Author == UserLogin
+                                      && !t.Deleted)
+                .Set(t => t.Deleted, true)
+                .ExecuteMany();
+
+            var another = await _translate.Query(t => t.Project == project && t.Volume == volume && t.Number == number && !t.Deleted && t.NextId == null);
+            if (!another.Any())
+            {
+                await _texts.Update(t => t.Id == txt.Id)
+                    .Set(t => t.HasTranslate, false)
+                    .Execute();
+
+                await UpdateVolumeProgress(project, volume);
+            }
+
+            return Ok();
+        }
+
+        private async Task UpdateVolumeProgress(string project, string volume)
+        {
+            var res = await _texts.Collection.Aggregate()
+                .Match(t => t.Project == project && t.Volume == volume && t.HasTranslate)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(t => t.Letters),
+                    Count = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            await _volumes.Update(v => v.Project == project && v.Code == volume)
+                .Set(v => v.TranslatedLetters, res != null ? res.Letters : 0)
+                .Set(v => v.TranslatedTexts, res != null ? res.Count : 0)
+                .Execute();
+
+            await UpdateProjectProgress(project);
+        }
+
+        private async Task UpdateProjectProgress(string project)
+        {
+            var res = await _volumes.Collection.Aggregate()
+                .Match(t => t.Project == project)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(v => v.TranslatedLetters),
+                    Count = g.Sum(v => v.TranslatedTexts)
+                })
+                .FirstOrDefaultAsync();
+
+            await _projects.Update(p => p.Code == project)
+                .Set(p => p.TranslatedLetters, res.Letters)
+                .Set(p => p.TranslatedTexts, res.Count)
+                .Execute();
         }
     }
 }
