@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
+using TranslateServer.Requests;
 using TranslateServer.Services;
 
 namespace TranslateServer.Controllers
@@ -77,7 +79,7 @@ namespace TranslateServer.Controllers
             await _volumes.Update(v => v.Project == request.Project && v.Code == request.Volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
             await _projects.Update(p => p.Code == request.Project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();
 
-            return Ok();
+            return Ok(new TranslateInfo(translate));
         }
 
         [HttpDelete("{project}/{volume}/{number}")]
@@ -144,6 +146,28 @@ namespace TranslateServer.Controllers
                 .Set(p => p.TranslatedLetters, res.Letters)
                 .Set(p => p.TranslatedTexts, res.Count)
                 .Execute();
+        }
+
+        [HttpGet("{translateId}/history")]
+        public async Task<ActionResult> History(string translateId)
+        {
+            var translate = await _translate.Get(t => t.Id == translateId);
+            if (translate == null) return NotFound();
+
+            var all = await _translate.Query(t => t.Project == translate.Project && t.Volume == translate.Volume && t.Number == translate.Number && t.NextId != null);
+
+            var dict = all.ToDictionary(t => t.NextId, t => t);
+
+            List<TranslateInfo> result = new();
+            result.Add(new TranslateInfo(translate));
+            while (true)
+            {
+                if (!dict.TryGetValue(translate.Id, out var prev)) break;
+                result.Add(new TranslateInfo(prev));
+                translate = prev;
+            }
+
+            return Ok(result);
         }
     }
 }

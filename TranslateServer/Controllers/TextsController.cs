@@ -1,11 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Model;
+using TranslateServer.Requests;
 using TranslateServer.Services;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace TranslateServer.Controllers
 {
@@ -21,20 +19,6 @@ namespace TranslateServer.Controllers
         {
             _texts = texts;
             _translate = translate;
-        }
-
-        public class TranslateInfo
-        {
-            public TranslateInfo(TextTranslate tr)
-            {
-                Author = tr.Author;
-                DateCreate = tr.DateCreate;
-                Text = tr.Text;
-            }
-
-            public string Author { get; }
-            public DateTime DateCreate { get; }
-            public string Text { get; }
         }
 
         [HttpGet]

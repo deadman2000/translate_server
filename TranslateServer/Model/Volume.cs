@@ -25,7 +25,7 @@ namespace TranslateServer.Model
 
         public int Texts { get; set; }
 
-        public DateTime LastSubmit { get; set; }
+        public DateTime? LastSubmit { get; set; }
 
         public int TranslatedTexts { get; set; }
 
