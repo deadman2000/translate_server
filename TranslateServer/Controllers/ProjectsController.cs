@@ -103,5 +103,16 @@ namespace TranslateServer.Controllers
 
             return Ok();
         }
+
+        [HttpPost("{shortName}/reindex")]
+        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TextsService texts)
+        {
+            await elastic.DeleteProject(shortName);
+
+            var items = await texts.Query(t => t.Project == shortName);
+            await elastic.InsertTexts(items.ToList());
+
+            return Ok();
+        }
     }
 }

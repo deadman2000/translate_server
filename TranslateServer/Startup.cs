@@ -50,6 +50,8 @@ namespace TranslateServer
             services.AddScoped<VolumesService>();
             services.AddScoped<TextsService>();
             services.AddScoped<TranslateService>();
+            services.AddScoped<SearchService>();
+            services.AddScoped<SCIService>();
 
             services.AddHostedService<ResourceExtractor>();
 

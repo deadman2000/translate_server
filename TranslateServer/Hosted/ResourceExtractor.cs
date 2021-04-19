@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
-using SCI_Lib;
 using SCI_Lib.Resources;
 using System;
 using System.Linq;
@@ -15,12 +13,10 @@ namespace TranslateServer.Hosted
 {
     public class ResourceExtractor : IHostedService
     {
-        private readonly ServerConfig _config;
         private readonly IServiceProvider _serviceProvider;
 
-        public ResourceExtractor(IOptions<ServerConfig> opConfig, IServiceProvider serviceProvider)
+        public ResourceExtractor(IServiceProvider serviceProvider)
         {
-            _config = opConfig.Value;
             _serviceProvider = serviceProvider;
         }
 
@@ -51,7 +47,7 @@ namespace TranslateServer.Hosted
 
         private async Task Process()
         {
-            var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateScope();
             var projects = scope.ServiceProvider.GetService<ProjectsService>();
 
             var toProcess = await projects.Query(p => p.Status == ProjectStatus.Processing);
@@ -59,12 +55,13 @@ namespace TranslateServer.Hosted
             {
                 try
                 {
-                    Console.WriteLine($"Extract resources {project.Code}");
-                    await Process(projects, project);
+                    await Extract(project);
 
                     await projects.Update(p => p.Id == project.Id)
                         .Set(p => p.Status, ProjectStatus.Working)
                         .Execute();
+
+                    await CreateIndex(project);
 
                     Console.WriteLine($"Project {project.Code} resources extracted");
                 }
@@ -79,14 +76,16 @@ namespace TranslateServer.Hosted
             }
         }
 
-        private async Task Process(ProjectsService projects, Project project)
+        private async Task Extract(Project project)
         {
-            var gameDir = $"{_config.ProjectsDir}/{project.Code}/";
-            var package = SCIPackage.Load(gameDir);
+            Console.WriteLine($"Extract resources {project.Code}");
 
-            var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateScope();
             var texts = scope.ServiceProvider.GetService<TextsService>();
             var volumes = scope.ServiceProvider.GetService<VolumesService>();
+            var sci = scope.ServiceProvider.GetService<SCIService>();
+
+            var package = sci.Load(project.Code);
 
             await texts.Delete(r => r.Project == project.Code);
             await volumes.Delete(v => v.Project == project.Code);
@@ -165,11 +164,26 @@ namespace TranslateServer.Hosted
                     })
                     .FirstOrDefaultAsync();
 
+                var projects = scope.ServiceProvider.GetService<ProjectsService>();
                 await projects.Update(p => p.Id == project.Id)
                     .Set(p => p.Letters, res.Total)
                     .Set(p => p.Texts, res.Count)
                     .Execute();
             }
+        }
+
+        private async Task CreateIndex(Project project)
+        {
+            Console.WriteLine("Indexing...");
+
+            using var scope = _serviceProvider.CreateScope();
+            var texts = scope.ServiceProvider.GetService<TextsService>();
+            var elastic = scope.ServiceProvider.GetService<SearchService>();
+
+            await elastic.DeleteProject(project.Code);
+
+            var items = await texts.Query(t => t.Project == project.Code);
+            await elastic.InsertTexts(items.ToList());
         }
 
     }
