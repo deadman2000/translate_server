@@ -37,6 +37,8 @@ namespace TranslateServer.Controllers
 
             public int Number { get; set; }
 
+            public string TranslateId { get; set; }
+
             public string Text { get; set; }
         }
 
@@ -59,11 +61,7 @@ namespace TranslateServer.Controllers
 
             await _translate.Insert(translate);
 
-            await _translate.Update(t => t.Project == request.Project
-                                      && t.Volume == request.Volume
-                                      && t.Number == request.Number
-                                      && t.Author == UserLogin
-                                      && t.Id != translate.Id
+            await _translate.Update(t => t.Id == request.TranslateId
                                       && t.NextId == null
                                       && !t.Deleted)
                 .Set(t => t.NextId, translate.Id)

@@ -30,16 +30,9 @@ namespace TranslateServer.Controllers
                 .SortAsc(t => t.Number)
                 .Execute();
 
-            // My translates
-            var myTrList = await _translate.Query()
-                .Where(t => t.Project == project && t.Volume == volume && t.NextId == null && !t.Deleted && t.Author == UserLogin)
-                .SortAsc(t => t.Number)
-                .Execute();
-            var myTDict = myTrList.ToDictionary(t => t.Number, t => new TranslateInfo(t));
-
-            // Other translates
+            // Translates
             var trList = await _translate.Query()
-                .Where(t => t.Project == project && t.Volume == volume && t.NextId == null && !t.Deleted && t.Author != UserLogin)
+                .Where(t => t.Project == project && t.Volume == volume && t.NextId == null && !t.Deleted)
                 .SortAsc(t => t.Number)
                 .Execute();
             var tdict = trList.GroupBy(t => t.Number).ToDictionary(t => t.Key, t => t.Select(tr => new TranslateInfo(tr)).ToArray());
@@ -47,7 +40,6 @@ namespace TranslateServer.Controllers
             return Ok(list.Select(t => new
             {
                 Source = t,
-                My = myTDict.TryGetValue(t.Number, out var my) ? my : null,
                 Translates = tdict.TryGetValue(t.Number, out var tr) ? tr : null,
             }));
         }
