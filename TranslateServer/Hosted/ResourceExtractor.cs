@@ -180,9 +180,9 @@ namespace TranslateServer.Hosted
             var texts = scope.ServiceProvider.GetService<TextsService>();
             var elastic = scope.ServiceProvider.GetService<SearchService>();
 
-            await elastic.DeleteProject(project.Code);
-
             var items = await texts.Query(t => t.Project == project.Code);
+
+            await elastic.DeleteProject(project.Code);
             await elastic.InsertTexts(items.ToList());
         }
 

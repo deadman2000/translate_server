@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace TranslateServer.Model
+﻿namespace TranslateServer.Model
 {
     public class TextIndex
     {
@@ -12,7 +7,5 @@ namespace TranslateServer.Model
         public string Text { get; set; }
 
         public string Link { get; set; }
-
-        public bool Translate { get; set; }
     }
 }

@@ -11,13 +11,14 @@ namespace TranslateServer.Services
     public class SearchService
     {
         private readonly ElasticClient _client;
+        const string SOURCE_TEXT_INDEX = "source-text";
+        const string TRANSLATE_INDEX = "translate-text";
 
         public SearchService(IConfiguration config)
         {
             var url = config.GetConnectionString("Elastic");
 
-            var settings = new ConnectionSettings(new Uri(url))
-                .DefaultIndex("translate");
+            var settings = new ConnectionSettings(new Uri(url));
 
             _client = new ElasticClient(settings);
         }
@@ -30,9 +31,8 @@ namespace TranslateServer.Services
                     Project = t.Project,
                     Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
                     Text = t.Text,
-                    Translate = false,
                 }
-            ));
+            ), SOURCE_TEXT_INDEX);
         }
 
         // https://www.elastic.co/guide/en/elasticsearch/client/net-api/current/writing-queries.html
@@ -40,10 +40,12 @@ namespace TranslateServer.Services
         public async Task<IEnumerable<SearchResultItem>> Search(string query)
         {
             var resp = await _client.SearchAsync<TextIndex>(s => s
+                .Index(new string[] { SOURCE_TEXT_INDEX, TRANSLATE_INDEX })
+                .IgnoreUnavailable()
                 .Query(q => q
                     .Match(m => m
                         .Field(f => f.Text).Query(query)
-                        //.Fuzziness(Fuzziness.Auto)
+                    //.Fuzziness(Fuzziness.Auto)
                     )
                 )
                 /*.Query(q=>q
@@ -58,7 +60,7 @@ namespace TranslateServer.Services
                     .HighlightQuery(q => q
                         .Match(m => m
                             .Field(f => f.Text).Query(query)
-                            //.Fuzziness(Fuzziness.Auto)
+                        //.Fuzziness(Fuzziness.Auto)
                         )
                     )
                     .Fields(fs => fs
@@ -77,7 +79,10 @@ namespace TranslateServer.Services
 
         public Task DeleteProject(string project)
         {
-            return _client.DeleteByQueryAsync<TextIndex>(q => q.Query(rq => rq.Term(f => f.Project, project)));
+            return _client.DeleteByQueryAsync<TextIndex>(q => q
+                .Index(new string[] { SOURCE_TEXT_INDEX, TRANSLATE_INDEX })
+                .IgnoreUnavailable()
+                .Query(rq => rq.Term(f => f.Project, project)));
         }
 
     }
