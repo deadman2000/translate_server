@@ -29,6 +29,7 @@ namespace TranslateServer.Services
                 new TextIndex
                 {
                     Project = t.Project,
+                    Volume = t.Volume,
                     Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
                     Text = t.Text,
                 }
@@ -72,6 +73,8 @@ namespace TranslateServer.Services
 
             return resp.Hits.Select(h => new SearchResultItem
             {
+                Project = h.Source.Project,
+                Volume = h.Source.Volume,
                 Html = h.Highlight.GetValueOrDefault("text")?.FirstOrDefault() ?? h.Source.Text,
                 Link = h.Source.Link
             });
