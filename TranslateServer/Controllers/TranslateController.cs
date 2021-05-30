@@ -80,29 +80,26 @@ namespace TranslateServer.Controllers
             return Ok(new TranslateInfo(translate));
         }
 
-        [HttpDelete("{project}/{volume}/{number}")]
-        public async Task<ActionResult> Delete(string project, string volume, int number)
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(string id)
         {
-            var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
-            if (txt == null)
+            var tr = await _translate.Get(t => t.Id == id);
+            if (tr == null)
                 return NotFound();
 
-            await _translate.Update(t => t.Project == project
-                                      && t.Volume == volume
-                                      && t.Number == number
-                                      && t.Author == UserLogin
-                                      && !t.Deleted)
+            // TODO Проверку на роль. Только админ может удалять всё
+            await _translate.Update(t => t.Id == id /*&& t.Author == UserLogin*/)
                 .Set(t => t.Deleted, true)
-                .ExecuteMany();
+                .Execute();
 
-            var another = await _translate.Query(t => t.Project == project && t.Volume == volume && t.Number == number && !t.Deleted && t.NextId == null);
+            var another = await _translate.Query(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number && !t.Deleted && t.NextId == null);
             if (!another.Any())
             {
-                await _texts.Update(t => t.Id == txt.Id)
+                await _texts.Update(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number)
                     .Set(t => t.HasTranslate, false)
                     .Execute();
 
-                await UpdateVolumeProgress(project, volume);
+                await UpdateVolumeProgress(tr.Project, tr.Volume);
             }
 
             return Ok();
