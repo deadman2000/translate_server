@@ -20,6 +20,12 @@ namespace TranslateServer.Services
 
         public IMongoCollection<T> Collection => _collection;
 
+        public async Task<T> GetById(string id)
+        {
+            var cursor = await _collection.FindAsync(d => d.Id == id);
+            return await cursor.FirstOrDefaultAsync();
+        }
+
         public async Task<T> Get(Expression<Func<T, bool>> filter)
         {
             var cursor = await _collection.FindAsync(filter);

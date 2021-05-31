@@ -90,7 +90,7 @@ namespace TranslateServer.Hosted
             await texts.Delete(r => r.Project == project.Code);
             await volumes.Delete(v => v.Project == project.Code);
 
-            foreach (var txt in package.GetResouces<ResText>())
+            foreach (var txt in package.GetResources<ResText>())
             {
                 var strings = txt.GetStrings();
                 if (strings.Length == 0) continue;
@@ -104,7 +104,7 @@ namespace TranslateServer.Hosted
                 }
             }
 
-            foreach (var scr in package.GetResouces<ResScript>())
+            foreach (var scr in package.GetResources<ResScript>())
             {
                 var strings = scr.GetStrings();
                 if (strings == null || strings.Length == 0) continue;
@@ -119,7 +119,7 @@ namespace TranslateServer.Hosted
             }
 
 
-            foreach (var msg in package.GetResouces<ResMessage>())
+            foreach (var msg in package.GetResources<ResMessage>())
             {
                 var records = msg.GetMessages();
                 if (records.Count == 0) continue;

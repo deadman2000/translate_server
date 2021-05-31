@@ -6,9 +6,9 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
-    <PackageReference Include="MongoDB.Driver" Version="2.12.0" />
-    <PackageReference Include="NEST" Version="7.12.0" />
-    <PackageReference Include="SCI_Lib" Version="1.0.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.12.3" />
+    <PackageReference Include="NEST" Version="7.13.0" />
+    <PackageReference Include="SCI_Lib" Version="1.0.1" />
   </ItemGroup>
 
 </Project>

@@ -83,7 +83,7 @@ namespace TranslateServer.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
-            var tr = await _translate.Get(t => t.Id == id);
+            var tr = await _translate.GetById(id);
             if (tr == null)
                 return NotFound();
 
@@ -146,7 +146,7 @@ namespace TranslateServer.Controllers
         [HttpGet("{translateId}/history")]
         public async Task<ActionResult> History(string translateId)
         {
-            var translate = await _translate.Get(t => t.Id == translateId);
+            var translate = await _translate.GetById(translateId);
             if (translate == null) return NotFound();
 
             var all = await _translate.Query(t => t.Project == translate.Project && t.Volume == translate.Volume && t.Number == translate.Number && t.NextId != null);
