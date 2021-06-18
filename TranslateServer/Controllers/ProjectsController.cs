@@ -63,6 +63,8 @@ namespace TranslateServer.Controllers
             return Ok(project);
         }
 
+        [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
+        [DisableRequestSizeLimit]
         [HttpPost("{shortName}/upload")]
         public async Task<ActionResult> Upload(string shortName, [FromForm] IFormFile file)
         {
@@ -111,6 +113,16 @@ namespace TranslateServer.Controllers
 
             await elastic.DeleteProject(shortName);
             await elastic.InsertTexts(items.ToList());
+
+            return Ok();
+        }
+
+        [HttpDelete("{shortName}")]
+        public async Task<ActionResult> Delete(string shortName, [FromServices] VolumesService volumes, [FromServices] TextsService texts)
+        {
+            await volumes.Delete(v => v.Project == shortName);
+            await texts.Delete(v => v.Project == shortName);
+            await _project.Delete(p => p.Code == shortName);
 
             return Ok();
         }

@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace TranslateServer.Model
@@ -9,13 +10,12 @@ namespace TranslateServer.Model
         {
         }
 
-        public TextResource(Project project, Volume volume, int number, string text, int? talker = null)
+        public TextResource(Project project, Volume volume, int number, string text)
         {
             Project = project.Code;
             Volume = volume.Code;
             Number = number;
             Text = text;
-            Talker = talker;
             Letters = CalcLetters(text);
         }
 
@@ -29,6 +29,12 @@ namespace TranslateServer.Model
 
         [BsonIgnoreIfNull]
         public int? Talker { get; set; }
+
+        [BsonIgnoreIfNull]
+        public int? Verb { get; set; }
+
+        [BsonIgnoreIfNull]
+        public List<string> Noun { get; set; }
 
         public int Letters { get; set; }
 

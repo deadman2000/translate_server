@@ -2,7 +2,11 @@
 using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
 using SCI_Lib.Resources;
+using SCI_Lib.Resources.Scripts1_1;
+using SCI_Lib.Resources.View;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,7 +59,8 @@ namespace TranslateServer.Hosted
             {
                 try
                 {
-                    await Extract(project);
+                    Worker worker = new Worker(_serviceProvider, project);
+                    await worker.Extract();
 
                     await projects.Update(p => p.Id == project.Id)
                         .Set(p => p.Status, ProjectStatus.Working)
@@ -73,102 +78,6 @@ namespace TranslateServer.Hosted
                         .Set(p => p.Error, ex.ToString())
                         .Execute();
                 }
-            }
-        }
-
-        private async Task Extract(Project project)
-        {
-            Console.WriteLine($"Extract resources {project.Code}");
-
-            using var scope = _serviceProvider.CreateScope();
-            var texts = scope.ServiceProvider.GetService<TextsService>();
-            var volumes = scope.ServiceProvider.GetService<VolumesService>();
-            var sci = scope.ServiceProvider.GetService<SCIService>();
-
-            var package = sci.Load(project.Code);
-
-            await texts.Delete(r => r.Project == project.Code);
-            await volumes.Delete(v => v.Project == project.Code);
-
-            foreach (var txt in package.GetResources<ResText>())
-            {
-                var strings = txt.GetStrings();
-                if (strings.Length == 0) continue;
-
-                var volume = new Volume(project, txt.FileName);
-                await volumes.Insert(volume);
-
-                for (int i = 0; i < strings.Length; i++)
-                {
-                    await texts.Insert(new TextResource(project, volume, i, strings[i]));
-                }
-            }
-
-            foreach (var scr in package.GetResources<ResScript>())
-            {
-                var strings = scr.GetStrings();
-                if (strings == null || strings.Length == 0) continue;
-
-                var volume = new Volume(project, scr.FileName);
-                await volumes.Insert(volume);
-
-                for (int i = 0; i < strings.Length; i++)
-                {
-                    await texts.Insert(new TextResource(project, volume, i, strings[i]));
-                }
-            }
-
-
-            foreach (var msg in package.GetResources<ResMessage>())
-            {
-                var records = msg.GetMessages();
-                if (records.Count == 0) continue;
-
-                var volume = new Volume(project, msg.FileName);
-                await volumes.Insert(volume);
-
-                for (int i = 0; i < records.Count; i++)
-                {
-                    var r = records[i];
-                    await texts.Insert(new TextResource(project, volume, i, r.Text, r.Talker));
-                }
-            }
-
-            var volList = await volumes.Query(v => v.Project == project.Code);
-            foreach (var vol in volList)
-            {
-                var res = await texts.Collection.Aggregate()
-                    .Match(t => t.Project == project.Code && t.Volume == vol.Code)
-                    .Group(t => t.Volume,
-                    g => new
-                    {
-                        Total = g.Sum(t => t.Letters),
-                        Count = g.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                await volumes.Update(v => v.Id == vol.Id)
-                    .Set(v => v.Letters, res.Total)
-                    .Set(v => v.Texts, res.Count)
-                    .Execute();
-            }
-
-            {
-                var res = await volumes.Collection.Aggregate()
-                    .Match(v => v.Project == project.Code)
-                    .Group(v => v.Project,
-                    g => new
-                    {
-                        Total = g.Sum(t => t.Letters),
-                        Count = g.Sum(t => t.Texts)
-                    })
-                    .FirstOrDefaultAsync();
-
-                var projects = scope.ServiceProvider.GetService<ProjectsService>();
-                await projects.Update(p => p.Id == project.Id)
-                    .Set(p => p.Letters, res.Total)
-                    .Set(p => p.Texts, res.Count)
-                    .Execute();
             }
         }
 
