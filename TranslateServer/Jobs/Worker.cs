@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
 
-namespace TranslateServer.Hosted
+namespace TranslateServer.Jobs
 {
     public class Worker
     {
@@ -88,6 +88,7 @@ namespace TranslateServer.Hosted
 
                         nounObjects = scr.Objects.Where(o => o.HasProperty("noun"))
                             .Select(o => new { o, n = o["noun"] })
+                            .Where(p => p.n != 0)
                             .GroupBy(p => p.n, p => p.o)
                             .ToDictionary(g => g.Key, g => (IEnumerable<Object1_1>)g.ToList());
                     }

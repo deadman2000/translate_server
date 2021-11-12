@@ -6,9 +6,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Quartz;
 using System.IO;
 using System.Threading.Tasks;
-using TranslateServer.Hosted;
+using TranslateServer.Jobs;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
 
@@ -55,7 +56,7 @@ namespace TranslateServer
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();
 
-            services.AddHostedService<ResourceExtractor>();
+            services.AddQuartz(ResourceExtractor.Schedule);
 
             services.AddControllers();
         }
