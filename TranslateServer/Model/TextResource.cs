@@ -47,5 +47,7 @@ namespace TranslateServer.Model
         }
 
         public bool HasTranslate { get; set; }
+
+        public bool TranslateApproved { get; set; }
     }
 }

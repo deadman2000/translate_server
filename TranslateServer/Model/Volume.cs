@@ -30,5 +30,9 @@ namespace TranslateServer.Model
         public int TranslatedTexts { get; set; }
 
         public int TranslatedLetters { get; set; }
+
+        public int ApprovedTexts { get; set; }
+
+        public int ApprovedLetters { get; set; }
     }
 }

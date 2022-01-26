@@ -67,12 +67,21 @@ namespace TranslateServer.Controllers
                 .Set(t => t.NextId, translate.Id)
                 .Execute();
 
+            bool needUpdate = false;
             if (!txt.HasTranslate)
             {
                 await _texts.Update(t => t.Id == txt.Id).Set(t => t.HasTranslate, true).Execute();
-
-                await UpdateVolumeProgress(request.Project, request.Volume);
+                needUpdate = true;
             }
+
+            if (txt.TranslateApproved)
+            {
+                await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, false).Execute();
+                needUpdate = true;
+            }
+
+            if (needUpdate)
+                await UpdateVolumeProgress(request.Project, request.Volume);
 
             await _volumes.Update(v => v.Project == request.Project && v.Code == request.Volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
             await _projects.Update(p => p.Code == request.Project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();
@@ -97,6 +106,7 @@ namespace TranslateServer.Controllers
             {
                 await _texts.Update(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number)
                     .Set(t => t.HasTranslate, false)
+                    .Set(t => t.TranslateApproved, false)
                     .Execute();
 
                 await UpdateVolumeProgress(tr.Project, tr.Volume);
@@ -107,7 +117,7 @@ namespace TranslateServer.Controllers
 
         private async Task UpdateVolumeProgress(string project, string volume)
         {
-            var res = await _texts.Collection.Aggregate()
+            var translated = await _texts.Collection.Aggregate()
                 .Match(t => t.Project == project && t.Volume == volume && t.HasTranslate)
                 .Group(t => true,
                 g => new
@@ -117,9 +127,21 @@ namespace TranslateServer.Controllers
                 })
                 .FirstOrDefaultAsync();
 
+            var approved = await _texts.Collection.Aggregate()
+                .Match(t => t.Project == project && t.Volume == volume && t.TranslateApproved)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(t => t.Letters),
+                    Count = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
             await _volumes.Update(v => v.Project == project && v.Code == volume)
-                .Set(v => v.TranslatedLetters, res != null ? res.Letters : 0)
-                .Set(v => v.TranslatedTexts, res != null ? res.Count : 0)
+                .Set(v => v.TranslatedLetters, translated != null ? translated.Letters : 0)
+                .Set(v => v.TranslatedTexts, translated != null ? translated.Count : 0)
+                .Set(v => v.ApprovedLetters, approved != null ? approved.Letters : 0)
+                .Set(v => v.ApprovedTexts, approved != null ? approved.Count : 0)
                 .Execute();
 
             await UpdateProjectProgress(project);
@@ -133,13 +155,17 @@ namespace TranslateServer.Controllers
                 g => new
                 {
                     Letters = g.Sum(v => v.TranslatedLetters),
-                    Count = g.Sum(v => v.TranslatedTexts)
+                    Count = g.Sum(v => v.TranslatedTexts),
+                    ALetters = g.Sum(v => v.ApprovedLetters),
+                    ACount = g.Sum(v => v.ApprovedTexts),
                 })
                 .FirstOrDefaultAsync();
 
             await _projects.Update(p => p.Code == project)
                 .Set(p => p.TranslatedLetters, res.Letters)
                 .Set(p => p.TranslatedTexts, res.Count)
+                .Set(p => p.ApprovedLetters, res.ALetters)
+                .Set(p => p.ApprovedTexts, res.ACount)
                 .Execute();
         }
 
@@ -163,6 +189,27 @@ namespace TranslateServer.Controllers
             }
 
             return Ok(result);
+        }
+
+        public class ApproveRequest
+        {
+            public bool Approved { get; set; }
+        }
+
+        [HttpPost("{translateId}/approve")]
+        public async Task<ActionResult> Approve(string translateId, [FromBody] ApproveRequest request)
+        {
+            var tr = await _translate.GetById(translateId);
+            if (tr == null) return NotFound();
+
+            await _texts.Update()
+                .Where(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number)
+                .Set(t => t.TranslateApproved, request.Approved)
+                .Execute();
+
+            await UpdateVolumeProgress(tr.Project, tr.Volume);
+
+            return Ok();
         }
     }
 }

@@ -23,6 +23,10 @@ namespace TranslateServer.Model
         public int TranslatedLetters { get; set; }
 
         public int TranslatedTexts { get; set; }
+
+        public int ApprovedTexts { get; set; }
+
+        public int ApprovedLetters { get; set; }
     }
 
     public enum ProjectStatus
