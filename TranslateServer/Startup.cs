@@ -58,6 +58,11 @@ namespace TranslateServer
 
             services.AddQuartz(ResourceExtractor.Schedule);
 
+            services.AddQuartzHostedService(options =>
+            {
+                options.WaitForJobsToComplete = true;
+            });
+
             services.AddControllers();
         }
 

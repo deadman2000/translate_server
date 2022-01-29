@@ -40,9 +40,10 @@ namespace TranslateServer.Jobs
             var toProcess = await _projects.Query(p => p.Status == ProjectStatus.Processing);
             foreach (var project in toProcess)
             {
+                Console.WriteLine($"Extracting resources for {project.Code}");
                 try
                 {
-                    Worker worker = new Worker(_serviceProvider, project);
+                    Worker worker = new(_serviceProvider, project);
                     await worker.Extract();
 
                     await _projects.Update(p => p.Id == project.Id)
