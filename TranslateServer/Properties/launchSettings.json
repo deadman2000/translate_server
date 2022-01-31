@@ -13,7 +13,9 @@
       "commandName": "Project",
       "launchUrl": "weatherforecast",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ConnectionStrings__Elastic": "http://192.168.88.13:9200",
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__Mongo": "mongodb://root:apgfJZ237QVpTjaa@192.168.88.13"
       },
       "dotnetRunMessages": "true",
       "applicationUrl": "http://localhost:5000"

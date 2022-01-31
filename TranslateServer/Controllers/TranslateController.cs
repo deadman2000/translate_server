@@ -20,13 +20,15 @@ namespace TranslateServer.Controllers
         private readonly TextsService _texts;
         private readonly VolumesService _volumes;
         private readonly ProjectsService _projects;
+        private readonly SearchService _search;
 
-        public TranslateController(TranslateService translate, TextsService texts, VolumesService volumes, ProjectsService projects)
+        public TranslateController(TranslateService translate, TextsService texts, VolumesService volumes, ProjectsService projects, SearchService search)
         {
             _translate = translate;
             _texts = texts;
             _volumes = volumes;
             _projects = projects;
+            _search = search;
         }
 
         public class SubmitRequest
@@ -86,6 +88,10 @@ namespace TranslateServer.Controllers
             await _volumes.Update(v => v.Project == request.Project && v.Code == request.Volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
             await _projects.Update(p => p.Code == request.Project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();
 
+            if (request.TranslateId != null)
+                await _search.DeleteTranslate(request.TranslateId);
+            await _search.IndexTranslate(translate);
+
             return Ok(new TranslateInfo(translate));
         }
 
@@ -111,6 +117,8 @@ namespace TranslateServer.Controllers
 
                 await UpdateVolumeProgress(tr.Project, tr.Volume);
             }
+
+            await _search.DeleteTranslate(id);
 
             return Ok();
         }

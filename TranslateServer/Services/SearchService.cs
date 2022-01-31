@@ -30,10 +30,49 @@ namespace TranslateServer.Services
                 {
                     Project = t.Project,
                     Volume = t.Volume,
+                    Number = t.Number,
                     Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
                     Text = t.Text,
                 }
             ), SOURCE_TEXT_INDEX);
+        }
+
+        public Task InsertTranslates(List<TextTranslate> translates)
+        {
+            return _client.IndexManyAsync(translates.Select(t =>
+                new TextIndex
+                {
+                    ResourceId = t.Id,
+                    Project = t.Project,
+                    Volume = t.Volume,
+                    Number = t.Number,
+                    Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
+                    Text = t.Text,
+                }
+            ), TRANSLATE_INDEX);
+        }
+
+        public async Task IndexTranslate(TextTranslate t)
+        {
+            var doc = new TextIndex
+            {
+                ResourceId = t.Id,
+                Project = t.Project,
+                Volume = t.Volume,
+                Number = t.Number,
+                Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
+                Text = t.Text,
+            };
+            await _client.DeleteByQueryAsync<TextIndex>(q => q.Query(q =>
+                //q.Term(f => f.Project, t.Project) & q.Term(f => f.Volume, t.Volume) & q.Term(f => f.Number, t.Number)
+                q.Term(f => f.ResourceId, t.Id)
+            ).Index(TRANSLATE_INDEX));
+            await _client.IndexAsync(doc, i => i.Index(TRANSLATE_INDEX));
+        }
+
+        public Task DeleteTranslate(string id)
+        {
+            return _client.DeleteByQueryAsync<TextIndex>(q => q.Query(q => q.Term(f => f.ResourceId, id)).Index(TRANSLATE_INDEX));
         }
 
         // https://www.elastic.co/guide/en/elasticsearch/client/net-api/current/writing-queries.html
@@ -87,6 +126,5 @@ namespace TranslateServer.Services
                 .IgnoreUnavailable()
                 .Query(rq => rq.Term(f => f.Project, project)));
         }
-
     }
 }
