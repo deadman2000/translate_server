@@ -64,7 +64,7 @@ namespace TranslateServer.Services
             return new MongoUpdater<T>(_collection).Where(filter);
         }
 
-        public Task Delete(Expression<Func<T, bool>> filter)
+        public Task<DeleteResult> Delete(Expression<Func<T, bool>> filter)
         {
             return _collection.DeleteManyAsync(filter);
         }
