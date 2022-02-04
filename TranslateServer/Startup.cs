@@ -54,6 +54,7 @@ namespace TranslateServer
             services.AddScoped<TextsService>();
             services.AddScoped<TranslateService>();
             services.AddScoped<CommentsService>();
+            services.AddScoped<PatchesService>();
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();
 
