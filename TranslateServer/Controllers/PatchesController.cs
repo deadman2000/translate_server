@@ -31,7 +31,11 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
-            var patch = await _patches.Save(project, file);
+            var patch = await _patches.Get(p => p.Project == project && p.FileName == file.FileName.ToLower());
+            if (patch != null)
+                await _patches.Update(patch, file);
+            else
+                patch = await _patches.Save(project, file);
             return Ok(patch);
         }
 
@@ -55,7 +59,7 @@ namespace TranslateServer.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
-            await _patches.Delete(p => p.Id == id);
+            await _patches.Delete(id);
             return Ok();
         }
     }
