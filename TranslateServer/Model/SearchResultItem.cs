@@ -2,12 +2,14 @@
 {
     public class SearchResultItem
     {
+        public string Id { get; set; }
+
         public string Project { get; set; }
 
         public string Volume { get; set; }
 
-        public string Html { get; set; }
+        public int Number { get; set; }
 
-        public string Link { get; set; }
+        public string Html { get; set; }
     }
 }

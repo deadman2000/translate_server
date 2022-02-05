@@ -31,7 +31,6 @@ namespace TranslateServer.Services
                     Project = t.Project,
                     Volume = t.Volume,
                     Number = t.Number,
-                    Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
                     Text = t.Text,
                 }
             ), SOURCE_TEXT_INDEX);
@@ -46,7 +45,6 @@ namespace TranslateServer.Services
                     Project = t.Project,
                     Volume = t.Volume,
                     Number = t.Number,
-                    Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
                     Text = t.Text,
                 }
             ), TRANSLATE_INDEX);
@@ -60,7 +58,6 @@ namespace TranslateServer.Services
                 Project = t.Project,
                 Volume = t.Volume,
                 Number = t.Number,
-                Link = $"/projects/{t.Project}/{t.Volume}#t{t.Number}",
                 Text = t.Text,
             };
             await _client.DeleteByQueryAsync<TextIndex>(q => q.Query(q =>
@@ -112,10 +109,11 @@ namespace TranslateServer.Services
 
             return resp.Hits.Select(h => new SearchResultItem
             {
+                Id = h.Id,
                 Project = h.Source.Project,
                 Volume = h.Source.Volume,
+                Number = h.Source.Number,
                 Html = h.Highlight.GetValueOrDefault("text")?.FirstOrDefault() ?? h.Source.Text,
-                Link = h.Source.Link
             });
         }
 
