@@ -12,9 +12,11 @@ namespace TranslateServer.Services
             _projectsDir = config.Value.ProjectsDir;
         }
 
+        public string GetProjectPath(string project) => $"{_projectsDir}/{project}/";
+
         public SCIPackage Load(string project)
         {
-            return SCIPackage.Load($"{_projectsDir}/{project}/");
+            return SCIPackage.Load(GetProjectPath(project));
         }
     }
 }
