@@ -51,7 +51,7 @@ namespace TranslateServer.Controllers
             {
                 HashSet<string> excludeSources = new();
                 {
-                    var texts = await _translate.Query(t => t.Project == project && !t.Deleted);
+                    var texts = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null);
                     foreach (var g in texts.GroupBy(t => t.Volume))
                     {
                         var resourceName = g.Key.Replace('_', '.');

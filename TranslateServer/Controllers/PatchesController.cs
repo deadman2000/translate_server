@@ -2,6 +2,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
+using MongoDB.Driver;
+using System.Linq;
+using MongoDB.Driver.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Services;
 
@@ -22,7 +25,10 @@ namespace TranslateServer.Controllers
         [HttpGet]
         public async Task<ActionResult> Get(string project)
         {
-            var patches = await _patches.Query(v => v.Project == project);
+            var patches = await _patches.Collection.AsQueryable()
+                .Where(p => p.Project == project)
+                .OrderBy(p => p.FileName)
+                .ToListAsync();
             return Ok(patches);
         }
 
