@@ -26,7 +26,11 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Search(SearchRequest request)
         {
             var result = await _elastic.Search(request.Query);
-            return Ok(result);
+            return Ok(new
+            {
+                request.Query,
+                result
+            });
         }
     }
 }
