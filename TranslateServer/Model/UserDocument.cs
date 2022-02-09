@@ -19,5 +19,6 @@
         }
 
         public const string ADMIN = "Admin";
+        public const string EDITOR = "Editor";
     }
 }

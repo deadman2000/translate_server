@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver.GridFS;
-using System;
 using System.IO;
 using System.Threading.Tasks;
 using TranslateServer.Model;
