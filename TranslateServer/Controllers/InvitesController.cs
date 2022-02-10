@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using System;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -24,7 +26,10 @@ namespace TranslateServer.Controllers
         [HttpGet]
         public async Task<ActionResult> Get()
         {
-            var invites = await _invites.All();
+            var invites = await _invites.Collection.AsQueryable()
+                .Where(i => true)
+                .OrderByDescending(i => i.DateCreate)
+                .ToListAsync();
             return Ok(invites);
         }
 
@@ -50,7 +55,7 @@ namespace TranslateServer.Controllers
 
         [AllowAnonymous]
         [HttpGet("valid/{code}")]
-        public async Task<ActionResult> IsActive(string code)
+        public async Task<ActionResult> IsValid(string code)
         {
             var invite = await _invites.Get(i => i.Code == code);
             if (invite == null) return NotFound();
