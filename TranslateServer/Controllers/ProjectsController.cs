@@ -41,7 +41,7 @@ namespace TranslateServer.Controllers
             public string Code { get; set; }
         }
 
-        [Authorize(Roles = UserDocument.ADMIN)]
+        [AuthAdmin]
         [HttpPost("create")]
         public async Task<ActionResult> CreateProject([FromBody] CreateProjectRequest request)
         {
@@ -63,6 +63,7 @@ namespace TranslateServer.Controllers
             return Ok(project);
         }
 
+        [AuthAdmin]
         [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
         [DisableRequestSizeLimit]
         [HttpPost("{shortName}/upload")]
@@ -106,6 +107,7 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
+        [AuthAdmin]
         [HttpPost("{shortName}/reindex")]
         public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TextsService texts, [FromServices] TranslateService translate)
         {
@@ -119,6 +121,7 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
+        [AuthAdmin]
         [HttpDelete("{shortName}")]
         public async Task<ActionResult> Delete(string shortName, [FromServices] VolumesService volumes, [FromServices] TextsService texts)
         {

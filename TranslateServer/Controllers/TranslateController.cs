@@ -102,8 +102,10 @@ namespace TranslateServer.Controllers
             if (tr == null)
                 return NotFound();
 
-            // TODO Проверку на роль. Только админ может удалять всё
-            await _translate.Update(t => t.Id == id /*&& t.Author == UserLogin*/)
+            if (!IsAdmin && tr.Author != UserLogin)
+                return Forbid();
+
+            await _translate.Update(t => t.Id == id)
                 .Set(t => t.Deleted, true)
                 .Execute();
 
@@ -204,6 +206,7 @@ namespace TranslateServer.Controllers
             public bool Approved { get; set; }
         }
 
+        [AuthAdmin]
         [HttpPost("{translateId}/approve")]
         public async Task<ActionResult> Approve(string translateId, [FromBody] ApproveRequest request)
         {

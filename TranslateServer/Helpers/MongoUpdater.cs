@@ -31,12 +31,12 @@ namespace TranslateServer.Helpers
             return this;
         }
 
-        public Task Execute()
+        public Task<UpdateResult> Execute()
         {
             return _collection.UpdateOneAsync(_filter, _update);
         }
 
-        public Task ExecuteMany()
+        public Task<UpdateResult> ExecuteMany()
         {
             return _collection.UpdateManyAsync(_filter, _update);
         }

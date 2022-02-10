@@ -43,6 +43,11 @@ namespace TranslateServer
                         c.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         return Task.CompletedTask;
                     };
+                    o.Events.OnRedirectToAccessDenied = c =>
+                    {
+                        c.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return Task.CompletedTask;
+                    };
                 });
 
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));

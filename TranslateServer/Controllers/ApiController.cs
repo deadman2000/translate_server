@@ -12,6 +12,8 @@ namespace TranslateServer.Controllers
     {
         protected string UserLogin => User.Identity.Name;
 
+        protected bool IsAdmin => User.IsInRole(UserDocument.ADMIN);
+
         protected ActionResult ApiBadRequest(string message)
         {
             return BadRequest(new { Message = message });

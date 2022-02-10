@@ -9,7 +9,6 @@ using TranslateServer.Services;
 
 namespace TranslateServer.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class InvitesController : ApiController
@@ -23,6 +22,7 @@ namespace TranslateServer.Controllers
             _users = users;
         }
 
+        [AuthAdmin]
         [HttpGet]
         public async Task<ActionResult> Get()
         {
@@ -33,6 +33,7 @@ namespace TranslateServer.Controllers
             return Ok(invites);
         }
 
+        [AuthAdmin]
         [HttpPost]
         public async Task<ActionResult> Create()
         {
@@ -46,6 +47,7 @@ namespace TranslateServer.Controllers
             return Ok(invite);
         }
 
+        [AuthAdmin]
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
@@ -53,7 +55,6 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        [AllowAnonymous]
         [HttpGet("valid/{code}")]
         public async Task<ActionResult> IsValid(string code)
         {
@@ -72,16 +73,15 @@ namespace TranslateServer.Controllers
             public string Password { get; set; }
         }
 
-        [AllowAnonymous]
         [HttpPost("activate")]
-        public async Task<ActionResult> Activate([FromForm] ActivateRequest request)
+        public async Task<ActionResult> Activate([FromBody] ActivateRequest request)
         {
             var invite = await _invites.Get(i => i.Code == request.Code);
             if (invite == null) return NotFound();
             if (invite.Activated) return ApiBadRequest("Invite already activated");
 
             var user = await _users.Get(u => u.Login == request.Login);
-            if (user != null) return BadRequest("User with this login is already registered");
+            if (user != null) return ApiBadRequest("User with this login is already registered");
 
             user = new UserDocument
             {
