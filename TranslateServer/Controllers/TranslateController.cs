@@ -109,6 +109,35 @@ namespace TranslateServer.Controllers
                 .Set(t => t.Deleted, true)
                 .Execute();
 
+            TextTranslate newTr = null;
+
+            if (!IsAdmin) // Удаляем все предыдущие переводы до первого чужого
+            {
+                TextTranslate next = tr;
+                while (true)
+                {
+                    var prev = await _translate.Get(t => t.NextId == next.Id && !t.Deleted);
+                    if (prev == null) break;
+
+                    if (prev.Author == UserLogin)
+                    {
+                        await _translate.Update(t => t.Id == prev.Id)
+                            .Set(t => t.Deleted, true)
+                            .Execute();
+                        next = prev;
+                    }
+                    else
+                    {
+                        await _translate.Update(t => t.Id == prev.Id)
+                            .Set(t => t.NextId, null)
+                            .Execute();
+                        prev.NextId = null;
+                        newTr = prev;
+                        break;
+                    }
+                }
+            }
+
             var another = await _translate.Query(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number && !t.Deleted && t.NextId == null);
             if (!another.Any())
             {
@@ -122,7 +151,7 @@ namespace TranslateServer.Controllers
 
             await _search.DeleteTranslate(id);
 
-            return Ok();
+            return Ok(newTr != null ? new TranslateInfo(newTr) : null);
         }
 
         private async Task UpdateVolumeProgress(string project, string volume)
