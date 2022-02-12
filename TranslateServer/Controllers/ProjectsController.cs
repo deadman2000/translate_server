@@ -127,7 +127,7 @@ namespace TranslateServer.Controllers
         {
             await volumes.Delete(v => v.Project == shortName);
             await texts.Delete(v => v.Project == shortName);
-            await _project.Delete(p => p.Code == shortName);
+            await _project.DeleteOne(p => p.Code == shortName);
 
             return Ok();
         }

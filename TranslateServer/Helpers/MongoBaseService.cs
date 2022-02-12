@@ -69,5 +69,10 @@ namespace TranslateServer.Services
             return _collection.DeleteManyAsync(filter);
         }
 
+        public Task<DeleteResult> DeleteOne(Expression<Func<T, bool>> filter)
+        {
+            return _collection.DeleteOneAsync(filter);
+        }
+
     }
 }

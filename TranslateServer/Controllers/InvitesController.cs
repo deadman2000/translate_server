@@ -51,7 +51,7 @@ namespace TranslateServer.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
-            await _invites.Delete(i => i.Id == id);
+            await _invites.DeleteOne(i => i.Id == id);
             return Ok();
         }
 

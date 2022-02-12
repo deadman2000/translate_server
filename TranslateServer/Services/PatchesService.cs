@@ -54,7 +54,7 @@ namespace TranslateServer.Services
             if (patch == null) return;
 
             await gridFS.DeleteAsync(new ObjectId(patch.FileId));
-            await Delete(p => p.Id == id);
+            await DeleteOne(p => p.Id == id);
         }
     }
 }

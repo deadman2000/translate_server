@@ -79,5 +79,39 @@ namespace TranslateServer.Controllers
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Ok();
         }
+
+        [AuthAdmin]
+        [HttpGet]
+        public async Task<ActionResult> GetList()
+        {
+            var users = await _users.All();
+            return Ok(users);
+        }
+
+        [AuthAdmin]
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(string id)
+        {
+            await _users.DeleteOne(u => u.Id == id);
+            return Ok();
+        }
+
+        public class SetPasswordRequest
+        {
+            public string UserId { get; set; }
+
+            public string Password { get; set; }
+        }
+
+        [AuthAdmin]
+        [HttpPost("setpassword")]
+        public async Task<ActionResult> SetPassword([FromBody] SetPasswordRequest request)
+        {
+            await _users.Update()
+                .Where(u => u.Id == request.UserId)
+                .Set(u => u.Password, Model.User.HashPassword(request.Password))
+                .Execute();
+            return Ok();
+        }
     }
 }

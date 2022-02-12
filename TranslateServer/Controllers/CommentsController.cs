@@ -58,7 +58,7 @@ namespace TranslateServer.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
-            var result = await _comments.Delete(c => c.Id == id && (IsAdmin || c.Author == UserLogin));
+            var result = await _comments.DeleteOne(c => c.Id == id && (IsAdmin || c.Author == UserLogin));
             if (result.DeletedCount == 0)
                 return BadRequest();
 

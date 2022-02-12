@@ -1,9 +1,12 @@
-﻿namespace TranslateServer.Model
+﻿using System.Text.Json.Serialization;
+
+namespace TranslateServer.Model
 {
     public class UserDocument : Document
     {
         public string Login { get; set; }
 
+        [JsonIgnore]
         public string Password { get; set; }
 
         public string Role { get; set; }
