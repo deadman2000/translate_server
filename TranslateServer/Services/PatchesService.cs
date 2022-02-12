@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver.GridFS;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -17,7 +18,7 @@ namespace TranslateServer.Services
             gridFS = new GridFSBucket(Collection.Database);
         }
 
-        public async Task<Patch> Save(string project, IFormFile file)
+        public async Task<Patch> Save(string project, IFormFile file, string user)
         {
             var id = await gridFS.UploadFromStreamAsync(file.FileName, file.OpenReadStream());
 
@@ -25,7 +26,9 @@ namespace TranslateServer.Services
             {
                 Project = project,
                 FileName = file.FileName.ToLower(),
-                FileId = id.ToString()
+                FileId = id.ToString(),
+                User = user,
+                UploadDate = DateTime.UtcNow
             };
 
             await Insert(patch);

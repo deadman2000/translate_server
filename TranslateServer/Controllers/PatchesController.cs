@@ -41,7 +41,7 @@ namespace TranslateServer.Controllers
             if (patch != null)
                 await _patches.Update(patch, file);
             else
-                patch = await _patches.Save(project, file);
+                patch = await _patches.Save(project, file, UserLogin);
             return Ok(patch);
         }
 

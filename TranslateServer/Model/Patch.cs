@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using System;
 
 namespace TranslateServer.Model
 {
@@ -11,5 +12,9 @@ namespace TranslateServer.Model
 
         [BsonRepresentation(BsonType.ObjectId)]
         public string FileId { get; set; }
+
+        public string User { get; set; }
+
+        public DateTime UploadDate { get; set; }
     }
 }
