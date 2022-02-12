@@ -41,19 +41,6 @@ namespace TranslateServer.Controllers
             return Ok("success");
         }
 
-        [HttpGet("me")]
-        [Authorize]
-        public ActionResult Me()
-        {
-            var role = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).FirstOrDefault();
-
-            return Ok(new
-            {
-                Login = UserLogin,
-                Role = role
-            });
-        }
-
         public class LoginRequest
         {
             public string Login { get; set; }
@@ -73,12 +60,43 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
+        [Authorize]
+        [HttpGet("me")]
+        public ActionResult Me()
+        {
+            var role = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).FirstOrDefault();
+
+            return Ok(new
+            {
+                Login = UserLogin,
+                Role = role
+            });
+        }
+
+        public class ChangePasswordRequest
+        {
+            public string Password { get; set; }
+        }
+
+        [Authorize]
+        [HttpPost("changepassword")]
+        public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            await _users.Update()
+                .Where(u => u.Login == UserLogin)
+                .Set(u => u.Password, Model.User.HashPassword(request.Password))
+                .Execute();
+            return Ok();
+        }
+
         [HttpPost("logout")]
         public async Task<ActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Ok();
         }
+
+        #region Administration
 
         [AuthAdmin]
         [HttpGet]
@@ -113,5 +131,7 @@ namespace TranslateServer.Controllers
                 .Execute();
             return Ok();
         }
+
+        #endregion
     }
 }
