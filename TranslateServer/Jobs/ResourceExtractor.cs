@@ -20,9 +20,9 @@ namespace TranslateServer.Jobs
             q.UseMicrosoftDependencyInjectionJobFactory();
             q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
             q.ScheduleJob<ResourceExtractor>(j => j
-                .StartNow()
+                .StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInSeconds(5)
+                    .WithIntervalInMinutes(1)
                     .RepeatForever())
             );
         }

@@ -61,10 +61,17 @@ namespace TranslateServer
             services.AddScoped<CommentsService>();
             services.AddScoped<PatchesService>();
             services.AddScoped<InvitesService>();
+            services.AddScoped<VideoService>();
+            services.AddScoped<VideoTasksService>();
+            services.AddScoped<VideoTextService>();
+
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();
 
+            services.AddSingleton<RunnersService>();
+
             services.AddQuartz(ResourceExtractor.Schedule);
+            services.AddQuartz(VideoTextMatcher.Schedule);
 
             services.AddQuartzHostedService(options =>
             {

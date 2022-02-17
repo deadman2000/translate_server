@@ -124,5 +124,31 @@ namespace TranslateServer.Services
                 .IgnoreUnavailable()
                 .Query(rq => rq.Term(f => f.Project, project)));
         }
+
+        public async Task<IEnumerable<MatchResult>> GetMatch(string project, string text)
+        {
+            var resp = await _client.SearchAsync<TextIndex>(s => s
+                .Index(new string[] { SOURCE_TEXT_INDEX })
+                .Query(q => q
+                    .Bool(b => b
+                        .Filter(f => f.Term(f => f.Project, project))
+                        .Must(m => m
+                            .Match(m => m
+                                .Field(f => f.Text).Query(text)
+                                .Fuzziness(Fuzziness.Auto)
+                            )
+                        )
+                    )
+                )
+                .Size(3)
+            );
+
+            return resp.Hits.Select(h => new MatchResult
+            {
+                Volume = h.Source.Volume,
+                Number = h.Source.Number,
+                Score = h.Score.GetValueOrDefault(0)
+            });
+        }
     }
 }

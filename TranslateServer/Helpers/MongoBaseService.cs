@@ -54,6 +54,11 @@ namespace TranslateServer.Services
             return _collection.InsertOneAsync(doc);
         }
 
+        public Task Insert(IEnumerable<T> docs)
+        {
+            return _collection.InsertManyAsync(docs);
+        }
+
         public MongoUpdater<T> Update()
         {
             return new MongoUpdater<T>(_collection);

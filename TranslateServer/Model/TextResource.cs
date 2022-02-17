@@ -49,5 +49,8 @@ namespace TranslateServer.Model
         public bool HasTranslate { get; set; }
 
         public bool TranslateApproved { get; set; }
+
+        [BsonIgnoreIfNull]
+        public List<VideoReference> References { get; set; }
     }
 }
