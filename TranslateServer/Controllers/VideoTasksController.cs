@@ -32,7 +32,7 @@ namespace TranslateServer.Controllers
             if (runner == null) return BadRequest();
 
             _runners.RegisterActivity(runner, Request);
-            var task = await _tasks.GetNext();
+            var task = await _tasks.GetNext(runner);
 
             return Ok(task);
         }
@@ -56,6 +56,8 @@ namespace TranslateServer.Controllers
         [HttpPost("info")]
         public async Task<ActionResult> Info([FromBody] InfoRequest request)
         {
+            _runners.RegisterActivity(request.Runner, Request);
+
             var task = await _tasks.Get(t => t.Id == request.TaskId && !t.Completed);
             if (task == null) return Ok();
 
@@ -105,6 +107,8 @@ namespace TranslateServer.Controllers
         [HttpPost("texts")]
         public async Task<ActionResult> Texts([FromBody] TextsRequest request, [FromServices] VideoTextService videoText, [FromServices] VideoService video)
         {
+            _runners.RegisterActivity(request.Runner, Request);
+      
             var task = await _tasks.Get(t => t.Id == request.TaskId);
             if (task == null) return Ok();
 

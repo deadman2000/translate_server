@@ -24,14 +24,16 @@ namespace TranslateServer.Services
             });
         }
 
-        public Task<DeleteResult> Delete(string id) => DeleteOne(t => t.Id == id);
-
-        public Task<VideoTask> GetNext()
+        public Task<VideoTask> GetNext(string runner)
         {
             var now = DateTime.UtcNow;
-            return Update(t => t.LastRequest == null || t.LastRequest < now.Subtract(TimeOut))
+            return Update(t => !t.Completed && (t.LastRequest == null || t.LastRequest < now.Subtract(TimeOut)))
                 .Set(t => t.LastRequest, now)
-                .Get();
+                .Set(t => t.Runner, runner)
+                .Get(new FindOneAndUpdateOptions<VideoTask, VideoTask>
+                {
+                    Sort = new SortDefinitionBuilder<VideoTask>().Ascending(t => t.LastRequest)
+                });
         }
 
         public Task<UpdateResult> Complete(string taskId, string runnerId)
