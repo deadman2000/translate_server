@@ -17,6 +17,9 @@ namespace TranslateServer.Model
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? Count { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? FrameSkip { get; internal set; }
+
         [JsonIgnore]
         public DateTime? LastRequest { get; set; }
 

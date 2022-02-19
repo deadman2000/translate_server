@@ -150,5 +150,32 @@ namespace TranslateServer.Services
                 Score = h.Score.GetValueOrDefault(0)
             });
         }
+
+        public async Task<double> GetMaxScore(TextResource text)
+        {
+            var resp = await _client.SearchAsync<TextIndex>(s => s
+                .Index(new string[] { SOURCE_TEXT_INDEX })
+                .Query(q => q
+                    .Bool(b => b
+                        .Filter(
+                            f => f.Term(f => f.Project, text.Project),
+                            f => f.Term(f => f.Volume, text.Volume),
+                            f => f.Term(f => f.Number, text.Number)
+                        )
+                        .Must(m => m
+                            .Match(m => m
+                                .Field(f => f.Text).Query(text.Text)
+                                .Fuzziness(Fuzziness.Auto)
+                            )
+                        )
+                    )
+                )
+                .Size(1)
+            );
+
+            if (!resp.Hits.Any())
+                return 0;
+            return resp.Hits.First().Score.Value;
+        }
     }
 }

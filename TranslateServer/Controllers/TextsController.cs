@@ -14,11 +14,13 @@ namespace TranslateServer.Controllers
     {
         private readonly TextsService _texts;
         private readonly TranslateService _translate;
+        private readonly VideoReferenceService _references;
 
-        public TextsController(TextsService texts, TranslateService translate)
+        public TextsController(TextsService texts, TranslateService translate, VideoReferenceService references)
         {
             _texts = texts;
             _translate = translate;
+            _references = references;
         }
 
         [HttpGet]
@@ -37,10 +39,20 @@ namespace TranslateServer.Controllers
                 .Execute();
             var tdict = trList.GroupBy(t => t.Number).ToDictionary(t => t.Key, t => t.Select(tr => new TranslateInfo(tr)).ToArray());
 
+            // References
+            var refs = await _references.Query(r => r.Project == project && r.Volume == volume);
+            var rdict = refs.GroupBy(r => r.Number).ToDictionary(r => r.Key, g => g.Select(r => new
+            {
+                r.VideoId,
+                r.Frame,
+                r.Score,
+            }));
+
             return Ok(list.Select(t => new
             {
                 Source = t,
                 Translates = tdict.TryGetValue(t.Number, out var tr) ? tr : null,
+                Refs = rdict.TryGetValue(t.Number, out var r) ? r : null
             }));
         }
     }

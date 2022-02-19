@@ -1,6 +1,6 @@
-﻿using Quartz;
+﻿using MongoDB.Driver;
+using Quartz;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,12 +39,14 @@ namespace TranslateServer.Jobs
 
         private readonly VideoTextService _videoText;
         private readonly TextsService _texts;
+        private readonly VideoReferenceService _videoReference;
         private readonly SearchService _search;
 
-        public VideoTextMatcher(VideoTextService videoText, TextsService texts, SearchService search)
+        public VideoTextMatcher(VideoTextService videoText, TextsService texts, VideoReferenceService videoReference, SearchService search)
         {
             _videoText = videoText;
             _texts = texts;
+            _videoReference = videoReference;
             _search = search;
         }
 
@@ -52,10 +54,25 @@ namespace TranslateServer.Jobs
         {
             while (true)
             {
-                var videoTexts = (await _videoText.All()).ToArray();
-                if (!videoTexts.Any()) return;
+                var texts = (await _texts.Query().Where(t => t.MaxScore == null).Limit(10).Execute()).ToArray();
+                if (texts.Length == 0) break;
+
+                await Task.WhenAll(texts.Select(t => CalcScore(t)).ToArray());
+            }
+
+            while (true)
+            {
+                var videoTexts = (await _videoText.Query().Limit(10).Execute()).ToArray();
+                if (videoTexts.Length == 0) return;
                 await Task.WhenAll(videoTexts.Select(vt => Process(vt)).ToArray());
             }
+        }
+
+        private async Task CalcScore(TextResource text)
+        {
+            var score = await _search.GetMaxScore(text);
+            if (score == 0) return;
+            await _texts.Update(t => t.Id == text.Id).Set(t => t.MaxScore, score).Execute();
         }
 
         private async Task Process(VideoText vt)
@@ -67,45 +84,31 @@ namespace TranslateServer.Jobs
 
         private async Task ProcessMatch(VideoText vt, MatchResult m)
         {
-            var res = await _texts.Get(t => t.Project == vt.Project && t.Volume == m.Volume && t.Number == m.Number);
-            if (res == null) return;
-
-            if (res.References == null)
-                res.References = new List<VideoReference>();
-
-            VideoReference newRef;
-            var oldRef = res.References.Find(r => r.VideoId == vt.VideoId);
-            if (oldRef == null)
+            var txt = await _texts.Get(t => t.Project == vt.Project && t.Volume == m.Volume && t.Number == m.Number);
+            if (txt.MaxScore.HasValue)
             {
-                newRef = new VideoReference
-                {
-                    VideoId = vt.VideoId,
-                    Frame = vt.Frame,
-                    Score = m.Score
-                };
-                res.References = new List<VideoReference> { newRef };
+                if (m.Score < txt.MaxScore * 0.6) return;
+                if (m.Score > txt.MaxScore * 1.2) return;
             }
-            else if (oldRef.Score < m.Score)
-            {
-                res.References.Remove(oldRef);
-                res.References.Add(newRef = new VideoReference
-                {
-                    VideoId = vt.VideoId,
-                    Frame = vt.Frame,
-                    Score = m.Score
-                });
-            }
-            else
-                return; // Old ref is best
 
-            var maxScore = res.References.Max(r => r.Score);
-            res.References.RemoveAll(s => s.Score < maxScore * 0.8);
-            if (!res.References.Contains(newRef)) return; // No changes
+            var matchRate = m.Score / txt.MaxScore;
 
-            await _texts.Update()
-                .Where(t => t.Id == res.Id)
-                .Set(t => t.References, res.References)
+            var reference = await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
+            if (reference.Score > m.Score) return;
+
+            await _videoReference.Update(r => r.Id == reference.Id && (r.Score == null || r.Score < m.Score))
+                .Set(r => r.Frame, vt.Frame)
+                .Set(r => r.T, vt.T)
+                .Set(r => r.Score, m.Score)
+                .Set(r => r.Rate, matchRate)
                 .Execute();
+
+            var maxScore = _videoReference.Collection.AsQueryable()
+                .Where(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number)
+                .Max(r => r.Score);
+            var scoreThr = maxScore * 0.8;
+
+            await _videoReference.Delete(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number && r.Score < scoreThr);
         }
     }
 }

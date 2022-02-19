@@ -8,6 +8,7 @@ namespace TranslateServer.Model
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
+        [BsonIgnoreIfDefault]
         public string Id { get; set; }
     }
 }

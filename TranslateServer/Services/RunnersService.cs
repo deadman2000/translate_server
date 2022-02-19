@@ -15,12 +15,14 @@ namespace TranslateServer.Services
             var ip = request.Headers["X-Real-Ip"].FirstOrDefault() ?? request.HttpContext.Connection.RemoteIpAddress.ToString();
             if (!_runners.TryGetValue(runnerId, out var runner))
             {
-                _runners[runnerId] = new Runner
+                runner = new Runner
                 {
                     Id = runnerId,
                     Ip = ip,
                     LastActivity = DateTime.UtcNow
                 };
+                lock (_runners)
+                    _runners[runnerId] = runner;
             }
             else
             {

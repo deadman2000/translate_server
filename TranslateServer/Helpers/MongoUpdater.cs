@@ -61,5 +61,10 @@ namespace TranslateServer.Helpers
         {
             return _collection.FindOneAndUpdateAsync(_filter, _update, op);
         }
+
+        public Task<UpdateResult> Upsert()
+        {
+            return _collection.UpdateOneAsync(_filter, _update, new UpdateOptions { IsUpsert = true });
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
@@ -10,11 +11,15 @@ namespace TranslateServer.Services
     {
         private static readonly TimeSpan TimeOut = TimeSpan.FromMinutes(15);
 
+        private static readonly int FramesInTask = 10;
+
+        private static readonly int FrameSkip = 10;
+
         public VideoTasksService(MongoService mongo) : base(mongo, "VideoTasks")
         {
         }
 
-        public Task GetInfo(string videoId, string project)
+        public Task CreateGetInfo(string project, string videoId)
         {
             return Insert(new VideoTask
             {
@@ -22,6 +27,28 @@ namespace TranslateServer.Services
                 VideoId = videoId,
                 Project = project,
             });
+        }
+
+        public Task CreateGetFrames(string project, string videoId, int frames)
+        {
+            List<VideoTask> tasks = new();
+            int from = 0;
+            while (from < frames)
+            {
+                tasks.Add(new VideoTask
+                {
+                    Type = VideoTask.GET_TEXT,
+                    Project = project,
+                    VideoId = videoId,
+                    Frame = from,
+                    Count = Math.Min(frames - from, FramesInTask),
+                    FrameSkip = FrameSkip
+                });
+
+                from += FramesInTask * FrameSkip;
+            }
+
+            return Insert(tasks);
         }
 
         public Task<VideoTask> GetNext(string runner)

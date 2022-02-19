@@ -11,6 +11,7 @@ namespace TranslateServer.Helpers
         private readonly IMongoCollection<T> _collection;
         private readonly List<FilterDefinition<T>> filters = new();
         private SortDefinition<T> _sort;
+        private int? _limit;
 
         public MongoQuery(IMongoCollection<T> collection)
         {
@@ -29,26 +30,27 @@ namespace TranslateServer.Helpers
             return this;
         }
 
+        public MongoQuery<T> Limit(int value)
+        {
+            _limit = value;
+            return this;
+        }
+
         public async Task<IEnumerable<T>> Execute()
         {
-            if (filters.Count == 0)
-                throw new InvalidOperationException();
-
             FilterDefinition<T> filter;
-            if (filters.Count == 1)
+            if (filters.Count == 0)
+                filter = Builders<T>.Filter.Empty;
+            else if (filters.Count == 1)
                 filter = filters[0];
             else
                 filter = Builders<T>.Filter.And(filters);
 
-            FindOptions<T, T> options = null;
-            if (_sort != null)
+            FindOptions<T, T> options = new()
             {
-                options = new FindOptions<T, T>()
-                {
-                    Sort = _sort
-                };
-            }
-
+                Sort = _sort,
+                Limit = _limit
+            };
             var result = await _collection.FindAsync(filter, options);
             return result.ToEnumerable();
         }

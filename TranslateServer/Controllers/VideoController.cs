@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
@@ -42,28 +43,28 @@ namespace TranslateServer.Controllers
             video.FramesProcessed = 0;
             await _video.Insert(video);
 
-            await _videoTasks.GetInfo(video.VideoId, video.Project);
+            await _videoTasks.CreateGetInfo(video.Project, video.VideoId);
 
             return Ok(video);
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(string id, [FromServices] VideoTextService videoText)
+        public async Task<ActionResult> Delete(string id, [FromServices] VideoTextService videoText, [FromServices] VideoReferenceService references)
         {
             await Task.WhenAll(new Task[]
             {
                 _video.DeleteOne(v => v.VideoId == id),
                 _videoTasks.Delete(t => t.VideoId == id),
-                videoText.Delete(t => t.VideoId == id)
+                videoText.Delete(t => t.VideoId == id),
+                references.Delete(r => r.VideoId == id)
             });
-            // TODO Clean up text resources
             return Ok();
         }
 
         [HttpGet("runners")]
         public ActionResult Runners([FromServices] RunnersService runners)
         {
-            return Ok(runners.List());
+            return Ok(runners.List().Where(r => r != null));
         }
     }
 }

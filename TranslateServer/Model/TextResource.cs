@@ -38,7 +38,6 @@ namespace TranslateServer.Model
 
         public int Letters { get; set; }
 
-
         private static readonly Regex NotLetters = new("[^\\w]");
 
         private static int CalcLetters(string text)
@@ -51,6 +50,6 @@ namespace TranslateServer.Model
         public bool TranslateApproved { get; set; }
 
         [BsonIgnoreIfNull]
-        public List<VideoReference> References { get; set; }
+        public double? MaxScore { get; set; }
     }
 }

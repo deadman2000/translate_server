@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,8 +12,6 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class VideoTasksController : ApiController
     {
-        private static readonly int FramesInTask = 50;
-
         private readonly VideoTasksService _tasks;
         private readonly RunnersService _runners;
         private readonly VideoService _videos;
@@ -69,23 +66,8 @@ namespace TranslateServer.Controllers
                     .Set(v => v.Fps, request.Fps)
                     .Execute();
 
-                List<VideoTask> tasks = new();
-                int from = 0;
-                while (from < request.Frames)
-                {
-                    tasks.Add(new VideoTask
-                    {
-                        Type = VideoTask.GET_TEXT,
-                        Project = task.Project,
-                        VideoId = task.VideoId,
-                        Frame = from,
-                        Count = Math.Min(request.Frames - from, FramesInTask)
-                    });
+                await _tasks.CreateGetFrames(task.Project, task.VideoId, request.Frames);
 
-                    from += FramesInTask;
-                }
-
-                await _tasks.Insert(tasks);
             }
 
             return Ok();
@@ -102,6 +84,7 @@ namespace TranslateServer.Controllers
         {
             public int Frame { get; set; }
             public string Text { get; set; }
+            public int T { get; set; }
         }
 
         [HttpPost("texts")]
@@ -117,7 +100,8 @@ namespace TranslateServer.Controllers
                 Project = task.Project,
                 VideoId = task.VideoId,
                 Frame = t.Frame,
-                Text = t.Text
+                Text = t.Text,
+                T = t.T
             });
             await videoText.Insert(docs);
 
@@ -126,13 +110,13 @@ namespace TranslateServer.Controllers
             {
                 var sum = _tasks.Collection.AsQueryable()
                     .Where(t => t.Completed && t.VideoId == task.VideoId && t.Type == VideoTask.GET_TEXT)
-                    .Sum(t => t.Count);
+                    .Sum(t => t.Count * t.FrameSkip);
 
                 if (sum.HasValue)
                 {
                     await video.Update()
                         .Where(v => v.VideoId == task.VideoId)
-                        .Inc(v => v.FramesProcessed, sum.Value)
+                        .Set(v => v.FramesProcessed, sum.Value)
                         .Execute();
                 }
             }
