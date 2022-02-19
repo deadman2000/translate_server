@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,21 +48,23 @@ namespace TranslateServer.Controllers
         public class InfoRequest
         {
             public string TaskId { get; set; }
-
+            public string Runner { get; set; }
             public int Frames { get; set; }
+            public double Fps { get; set; }
         }
 
         [HttpPost("info")]
         public async Task<ActionResult> Info([FromBody] InfoRequest request)
         {
-            var task = await _tasks.Get(t => t.Id == request.TaskId);
+            var task = await _tasks.Get(t => t.Id == request.TaskId && !t.Completed);
             if (task == null) return Ok();
 
-            var result = await _tasks.Delete(request.TaskId);
-            if (result.DeletedCount > 0)
+            var result = await _tasks.Complete(request.TaskId, request.Runner);
+            if (result.ModifiedCount > 0)
             {
                 await _videos.Update(v => v.VideoId == task.VideoId)
                     .Set(v => v.FramesCount, request.Frames)
+                    .Set(v => v.Fps, request.Fps)
                     .Execute();
 
                 List<VideoTask> tasks = new();
@@ -89,7 +92,7 @@ namespace TranslateServer.Controllers
         public class TextsRequest
         {
             public string TaskId { get; set; }
-
+            public string Runner { get; set; }
             public IEnumerable<FrameTexts> Texts { get; set; }
         }
 
@@ -100,7 +103,7 @@ namespace TranslateServer.Controllers
         }
 
         [HttpPost("texts")]
-        public async Task<ActionResult> Texts([FromBody] TextsRequest request, [FromServices] VideoTextService videoText)
+        public async Task<ActionResult> Texts([FromBody] TextsRequest request, [FromServices] VideoTextService videoText, [FromServices] VideoService video)
         {
             var task = await _tasks.Get(t => t.Id == request.TaskId);
             if (task == null) return Ok();
@@ -114,7 +117,22 @@ namespace TranslateServer.Controllers
             });
             await videoText.Insert(docs);
 
-            await _tasks.Delete(request.TaskId);
+            var result = await _tasks.Complete(request.TaskId, request.Runner);
+            if (result.ModifiedCount > 0)
+            {
+                var sum = _tasks.Collection.AsQueryable()
+                    .Where(t => t.Completed && t.VideoId == task.VideoId && t.Type == VideoTask.GET_TEXT)
+                    .Sum(t => t.Count);
+
+                if (sum.HasValue)
+                {
+                    await video.Update()
+                        .Where(v => v.VideoId == task.VideoId)
+                        .Inc(v => v.FramesProcessed, sum.Value)
+                        .Execute();
+                }
+            }
+
             return Ok();
         }
     }

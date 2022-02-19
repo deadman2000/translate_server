@@ -11,5 +11,7 @@
         public int FramesProcessed { get; set; }
 
         public int FramesCount { get; set; }
+
+        public double Fps { get; set; }
     }
 }

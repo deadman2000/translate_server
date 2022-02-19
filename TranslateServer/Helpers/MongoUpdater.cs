@@ -28,6 +28,17 @@ namespace TranslateServer.Helpers
                 _update = Builders<T>.Update.Set(field, value);
             else
                 _update = _update.Set(field, value);
+
+            return this;
+        }
+
+        public MongoUpdater<T> Inc<TField>(Expression<Func<T, TField>> field, TField value)
+        {
+            if (_update == null)
+                _update = Builders<T>.Update.Inc(field, value);
+            else
+                _update = _update.Inc(field, value);
+
             return this;
         }
 

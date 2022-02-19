@@ -8,7 +8,7 @@ namespace TranslateServer.Services
 {
     public class VideoTasksService : MongoBaseService<VideoTask>
     {
-        private static readonly TimeSpan TimeOut = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan TimeOut = TimeSpan.FromMinutes(15);
 
         public VideoTasksService(MongoService mongo) : base(mongo, "VideoTasks")
         {
@@ -32,6 +32,15 @@ namespace TranslateServer.Services
             return Update(t => t.LastRequest == null || t.LastRequest < now.Subtract(TimeOut))
                 .Set(t => t.LastRequest, now)
                 .Get();
+        }
+
+        public Task<UpdateResult> Complete(string taskId, string runnerId)
+        {
+            return Update(t => t.Id == taskId && !t.Completed)
+                .Set(t => t.Completed, true)
+                .Set(t => t.Runner, runnerId)
+                .Set(t => t.DateComplete, DateTime.UtcNow)
+                .Execute();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 
 namespace TranslateServer.Model
 {
@@ -10,11 +11,23 @@ namespace TranslateServer.Model
 
         public string VideoId { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? Frame { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? Count { get; set; }
 
+        [JsonIgnore]
         public DateTime? LastRequest { get; set; }
+
+        [JsonIgnore]
+        public bool Completed { get; set; }
+
+        [JsonIgnore]
+        public DateTime? DateComplete { get; set; }
+
+        [JsonIgnore]
+        public string Runner { get; set; }
 
         public const string INFO_REQUEST = "INFO_REQUEST";
         public const string GET_TEXT = "GET_TEXT";

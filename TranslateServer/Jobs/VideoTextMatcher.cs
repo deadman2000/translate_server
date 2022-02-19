@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using Quartz;
+﻿using Quartz;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -13,26 +13,36 @@ namespace TranslateServer.Jobs
     {
         public static void Schedule(IServiceCollectionQuartzConfigurator q)
         {
-            q.UseMicrosoftDependencyInjectionJobFactory();
-            q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
-            q.ScheduleJob<VideoTextMatcher>(j => j
-                //.StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
-                .StartNow()
-                .WithSimpleSchedule(x => x
-                    //.WithIntervalInMinutes(1)
-                    .WithIntervalInSeconds(5)
-                    .RepeatForever())
-            );
+            if (Debugger.IsAttached)
+            {
+                q.UseMicrosoftDependencyInjectionJobFactory();
+                q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
+                q.ScheduleJob<VideoTextMatcher>(j => j
+                    .StartNow()
+                    .WithSimpleSchedule(x => x
+                        .WithIntervalInSeconds(5)
+                        .RepeatForever())
+                );
+            }
+            else
+            {
+                q.UseMicrosoftDependencyInjectionJobFactory();
+                q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
+                q.ScheduleJob<VideoTextMatcher>(j => j
+                    .StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
+                    .WithSimpleSchedule(x => x
+                        .WithIntervalInMinutes(1)
+                        .RepeatForever())
+                );
+            }
         }
 
-        private readonly ILogger<VideoTextMatcher> _logger;
         private readonly VideoTextService _videoText;
         private readonly TextsService _texts;
         private readonly SearchService _search;
 
-        public VideoTextMatcher(ILogger<VideoTextMatcher> logger, VideoTextService videoText, TextsService texts, SearchService search)
+        public VideoTextMatcher(VideoTextService videoText, TextsService texts, SearchService search)
         {
-            _logger = logger;
             _videoText = videoText;
             _texts = texts;
             _search = search;
@@ -42,7 +52,7 @@ namespace TranslateServer.Jobs
         {
             while (true)
             {
-                var videoTexts = await _videoText.All();
+                var videoTexts = (await _videoText.All()).ToArray();
                 if (!videoTexts.Any()) return;
                 await Task.WhenAll(videoTexts.Select(vt => Process(vt)).ToArray());
             }

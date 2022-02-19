@@ -48,10 +48,14 @@ namespace TranslateServer.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(string id)
+        public async Task<ActionResult> Delete(string id, [FromServices] VideoTextService videoText)
         {
-            await _video.DeleteOne(v => v.VideoId == id);
-            await _videoTasks.Delete(t => t.VideoId == id);
+            await Task.WhenAll(new Task[]
+            {
+                _video.DeleteOne(v => v.VideoId == id),
+                _videoTasks.Delete(t => t.VideoId == id),
+                videoText.Delete(t => t.VideoId == id)
+            });
             // TODO Clean up text resources
             return Ok();
         }
