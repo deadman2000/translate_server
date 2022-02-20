@@ -1,4 +1,5 @@
-﻿using MongoDB.Driver;
+﻿using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 using Quartz;
 using System;
 using System.Collections.Generic;
@@ -38,6 +39,7 @@ namespace TranslateServer.Jobs
             }
         }
 
+        private readonly ILogger<VideoTextMatcher> _logger;
         private readonly VideoTextService _videoText;
         private readonly TextsService _texts;
         private readonly VideoReferenceService _videoReference;
@@ -45,8 +47,9 @@ namespace TranslateServer.Jobs
         private readonly VideoService _videos;
         private readonly VideoTasksService _tasks;
 
-        public VideoTextMatcher(VideoTextService videoText, TextsService texts, VideoReferenceService videoReference, SearchService search, VideoService videos, VideoTasksService tasks)
+        public VideoTextMatcher(ILogger<VideoTextMatcher> logger, VideoTextService videoText, TextsService texts, VideoReferenceService videoReference, SearchService search, VideoService videos, VideoTasksService tasks)
         {
+            _logger = logger;
             _videoText = videoText;
             _texts = texts;
             _videoReference = videoReference;
@@ -134,7 +137,19 @@ namespace TranslateServer.Jobs
 
         private async Task ProcessMatch(VideoText vt, MatchResult m)
         {
+            if (m == null)
+            {
+                _logger.LogError("Match result is null");
+                return;
+            }
+
             var txt = await _texts.Get(t => t.Project == vt.Project && t.Volume == m.Volume && t.Number == m.Number);
+            if (txt == null)
+            {
+                _logger.LogError($"Text not found {vt.Project} {m.Volume} {m.Number}");
+                return;
+            }
+
             if (txt.MaxScore.HasValue)
             {
                 if (m.Score < txt.MaxScore * 0.6) return;
@@ -144,6 +159,14 @@ namespace TranslateServer.Jobs
             var matchRate = m.Score / txt.MaxScore;
 
             var reference = await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
+            if (reference == null)
+                reference = await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
+            if (reference == null)
+            {
+                _logger.LogError("Video reference null");
+                return;
+            }
+
             if (reference.Score > m.Score) return;
 
             await _videoReference.Update(r => r.Id == reference.Id && (r.Score == null || r.Score < m.Score))
@@ -156,6 +179,8 @@ namespace TranslateServer.Jobs
             var maxScore = _videoReference.Collection.AsQueryable()
                 .Where(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number)
                 .Max(r => r.Score);
+
+            if (maxScore == null) return;
             var scoreThr = maxScore * 0.8;
 
             await _videoReference.Delete(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number && r.Score < scoreThr);

@@ -22,17 +22,7 @@ namespace TranslateServer.Services
 
             if (result.UpsertedId != null)
                 return await GetById(result.UpsertedId.ToString());
-            return await Get(r=> r.Project == project && r.Volume == volume && r.Number == number && r.VideoId == videoId);
-
-            /*return Upsert(r => r.Project == project && r.Volume == volume && r.Number == number && r.VideoId == videoId,
-                new VideoReference
-                {
-                    Project = project,
-                    Volume = volume,
-                    Number = number,
-                    VideoId = videoId,
-                }
-            );*/
+            return await Get(r => r.Project == project && r.Volume == volume && r.Number == number && r.VideoId == videoId);
         }
     }
 }
