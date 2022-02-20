@@ -77,7 +77,7 @@ namespace TranslateServer.Controllers
         {
             public string TaskId { get; set; }
             public string Runner { get; set; }
-            public IEnumerable<FrameTexts> Texts { get; set; }
+            public List<FrameTexts> Texts { get; set; }
         }
 
         public class FrameTexts
@@ -91,9 +91,14 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Texts([FromBody] TextsRequest request, [FromServices] VideoTextService videoText, [FromServices] VideoService video)
         {
             _runners.RegisterActivity(request.Runner, Request);
-      
+
             var task = await _tasks.Get(t => t.Id == request.TaskId);
             if (task == null) return Ok();
+            if (request.Texts.Count == 0)
+            {
+                await _tasks.Complete(request.TaskId, request.Runner);
+                return Ok();
+            }
 
             var docs = request.Texts.Select(t => new VideoText
             {
