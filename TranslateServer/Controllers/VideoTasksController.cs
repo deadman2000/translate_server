@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -123,6 +124,30 @@ namespace TranslateServer.Controllers
                 }
             }
 
+            return Ok();
+        }
+
+        [HttpPost("frame/{videoId}/{frame}")]
+        public async Task<ActionResult> PostFrame(string videoId, string frame)
+        {
+            var dir = "resources/videos/" + videoId;
+            Directory.CreateDirectory(dir);
+            using var stream = new FileStream(dir + "/" + frame + ".png", FileMode.Create, FileAccess.Write);
+            await Request.Body.CopyToAsync(stream);
+            return Ok();
+        }
+
+        public class ImagesRequest
+        {
+            public string TaskId { get; set; }
+            public string Runner { get; set; }
+        }
+
+        [HttpPost("images")]
+        public async Task<ActionResult> Images([FromBody] ImagesRequest request)
+        {
+            _runners.RegisterActivity(request.Runner, Request);
+            await _tasks.Delete(t => t.Id == request.TaskId);
             return Ok();
         }
     }

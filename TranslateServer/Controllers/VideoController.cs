@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -58,6 +59,11 @@ namespace TranslateServer.Controllers
                 videoText.Delete(t => t.VideoId == id),
                 references.Delete(r => r.VideoId == id)
             });
+            try
+            {
+                Directory.Delete($"resources/videos/{id}", true);
+            }
+            catch { }
             return Ok();
         }
 
@@ -65,6 +71,13 @@ namespace TranslateServer.Controllers
         public ActionResult Runners([FromServices] RunnersService runners)
         {
             return Ok(runners.List().Where(r => r != null));
+        }
+
+        [HttpDelete("runner/{id}")]
+        public ActionResult DeleteRunner(string id, [FromServices] RunnersService runners)
+        {
+            runners.Delete(id);
+            return Ok();
         }
     }
 }

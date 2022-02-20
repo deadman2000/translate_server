@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Requests;
@@ -45,7 +46,9 @@ namespace TranslateServer.Controllers
             {
                 r.VideoId,
                 r.Frame,
+                T = Math.Max(r.T - 2, 0),
                 r.Score,
+                r.Rate,
             }));
 
             return Ok(list.Select(t => new

@@ -71,13 +71,16 @@ namespace TranslateServer
 
             services.AddSingleton<RunnersService>();
 
-            services.AddQuartz(ResourceExtractor.Schedule);
-            services.AddQuartz(VideoTextMatcher.Schedule);
-
-            services.AddQuartzHostedService(options =>
+            if (!Configuration.GetValue("DisableJobs", false))
             {
-                options.WaitForJobsToComplete = true;
-            });
+                services.AddQuartz(ResourceExtractor.Schedule);
+                services.AddQuartz(VideoTextMatcher.Schedule);
+
+                services.AddQuartzHostedService(options =>
+                {
+                    options.WaitForJobsToComplete = true;
+                });
+            }
 
             services.AddControllers();
         }
@@ -94,7 +97,7 @@ namespace TranslateServer
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "resources")),
-                RequestPath = "/resources"
+                RequestPath = "/api/resources"
             });
 
             app.UseRouting();

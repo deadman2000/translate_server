@@ -1,6 +1,7 @@
 ﻿using MongoDB.Driver;
 using Quartz;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -41,16 +42,27 @@ namespace TranslateServer.Jobs
         private readonly TextsService _texts;
         private readonly VideoReferenceService _videoReference;
         private readonly SearchService _search;
+        private readonly VideoService _videos;
+        private readonly VideoTasksService _tasks;
 
-        public VideoTextMatcher(VideoTextService videoText, TextsService texts, VideoReferenceService videoReference, SearchService search)
+        public VideoTextMatcher(VideoTextService videoText, TextsService texts, VideoReferenceService videoReference, SearchService search, VideoService videos, VideoTasksService tasks)
         {
             _videoText = videoText;
             _texts = texts;
             _videoReference = videoReference;
             _search = search;
+            _videos = videos;
+            _tasks = tasks;
         }
 
         public async Task Execute(IJobExecutionContext context)
+        {
+            await CalcMaxScoore();
+            await ProcessTexts();
+            await CompleteVideos();
+        }
+
+        private async Task CalcMaxScoore()
         {
             while (true)
             {
@@ -59,13 +71,51 @@ namespace TranslateServer.Jobs
 
                 await Task.WhenAll(texts.Select(t => CalcScore(t)).ToArray());
             }
+        }
 
+        private async Task ProcessTexts()
+        {
             while (true)
             {
                 var videoTexts = (await _videoText.Query().Limit(10).Execute()).ToArray();
-                if (videoTexts.Length == 0) return;
+                if (videoTexts.Length == 0) break;
                 await Task.WhenAll(videoTexts.Select(vt => Process(vt)).ToArray());
             }
+        }
+
+        private async Task CompleteVideos()
+        {
+            var videos = await _videos.Query(v => !v.Completed && v.FramesCount > 0 && v.FramesProcessed > 0);
+            foreach (var v in videos)
+            {
+                if (v.FramesProcessed >= v.FramesCount)
+                    await CompleteVideo(v);
+            }
+        }
+
+        private async Task CompleteVideo(Video video)
+        {
+            var refs = await _videoReference.Query(r => r.VideoId == video.VideoId);
+
+            var frames = refs.Select(r => r.Frame).Distinct();
+
+            var tasks = frames
+                .Select((x, i) => new { Index = i, Value = x })
+                .GroupBy(x => x.Index / 10)
+                .Select(x => x.Select(v => v.Value).ToList())
+                .Select(x => new VideoTask
+                {
+                    Type = VideoTask.GET_IMAGE,
+                    VideoId = video.VideoId,
+                    Project = video.Project,
+                    Frames = x.ToArray(),
+                }).ToArray();
+
+            if (tasks.Length > 0)
+                await _tasks.Insert(tasks);
+
+            await _tasks.Delete(t => t.VideoId == video.VideoId && t.Type != VideoTask.GET_IMAGE);
+            await _videos.Update().Where(v => v.Id == video.Id).Set(v => v.Completed, true).Execute();
         }
 
         private async Task CalcScore(TextResource text)

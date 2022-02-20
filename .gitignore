@@ -351,3 +351,4 @@ MigrationBackup/
 
 /TranslateServer/projects/
 /TranslateServer/resources/
+/TranslateServer/appsettings.Pi.json

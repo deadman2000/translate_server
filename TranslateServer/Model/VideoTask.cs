@@ -20,6 +20,9 @@ namespace TranslateServer.Model
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? FrameSkip { get; internal set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int[] Frames { get; set; }
+
         [JsonIgnore]
         public DateTime? LastRequest { get; set; }
 
@@ -34,6 +37,6 @@ namespace TranslateServer.Model
 
         public const string INFO_REQUEST = "INFO_REQUEST";
         public const string GET_TEXT = "GET_TEXT";
-        public const string GET_FRAME = "GET_FRAME";
+        public const string GET_IMAGE = "GET_IMAGE";
     }
 }

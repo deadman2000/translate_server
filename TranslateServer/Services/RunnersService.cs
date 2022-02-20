@@ -32,5 +32,11 @@ namespace TranslateServer.Services
         }
 
         public IEnumerable<Runner> List() => _runners.Values;
+
+        public void Delete(string id)
+        {
+            lock (_runners)
+                _runners.Remove(id);
+        }
     }
 }
