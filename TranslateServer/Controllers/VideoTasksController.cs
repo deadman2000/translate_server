@@ -94,21 +94,18 @@ namespace TranslateServer.Controllers
 
             var task = await _tasks.Get(t => t.Id == request.TaskId);
             if (task == null) return Ok();
-            if (request.Texts.Count == 0)
+            if (request.Texts.Count > 0)
             {
-                await _tasks.Complete(request.TaskId, request.Runner);
-                return Ok();
+                var docs = request.Texts.Select(t => new VideoText
+                {
+                    Project = task.Project,
+                    VideoId = task.VideoId,
+                    Frame = t.Frame,
+                    Text = t.Text,
+                    T = t.T
+                });
+                await videoText.Insert(docs);
             }
-
-            var docs = request.Texts.Select(t => new VideoText
-            {
-                Project = task.Project,
-                VideoId = task.VideoId,
-                Frame = t.Frame,
-                Text = t.Text,
-                T = t.T
-            });
-            await videoText.Insert(docs);
 
             var result = await _tasks.Complete(request.TaskId, request.Runner);
             if (result.ModifiedCount > 0)
