@@ -112,11 +112,24 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TextsService texts, [FromServices] TranslateService translate)
         {
             var items = await texts.Query(t => t.Project == shortName);
+            var textsList = items.ToList();
             var tr = await translate.Query(t => t.Project == shortName && t.NextId == null && !t.Deleted);
 
             await elastic.DeleteProject(shortName);
-            await elastic.InsertTexts(items.ToList());
+            await elastic.InsertTexts(textsList);
             await elastic.InsertTranslates(tr.ToList());
+
+            foreach (var txt in textsList)
+            {
+                var letters = txt.Letters;
+                txt.RecalcLetters();
+                if (txt.Letters != letters)
+                {
+                    await texts.Update(t => t.Id == txt.Id)
+                        .Set(t => t.Letters, txt.Letters)
+                        .Execute();
+                }
+            }
 
             return Ok();
         }

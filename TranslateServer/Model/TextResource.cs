@@ -38,7 +38,13 @@ namespace TranslateServer.Model
 
         public int Letters { get; set; }
 
-        private static readonly Regex NotLetters = new("[^\\w]");
+        public void RecalcLetters()
+        {
+            Letters = CalcLetters(Text);
+        }
+
+
+        private static readonly Regex NotLetters = new("[ \\t]");
 
         private static int CalcLetters(string text)
         {
