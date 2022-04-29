@@ -13,7 +13,7 @@ namespace TranslateServer.Mongo
             var cs = configuration.GetConnectionString("Mongo");
             var mongoClientSettings = MongoClientSettings.FromUrl(new MongoUrl(cs));
 
-            if (Debugger.IsAttached)
+            /*if (Debugger.IsAttached)
                 mongoClientSettings.ClusterConfigurator = cb =>
                 {
                     cb.Subscribe<CommandStartedEvent>(e =>
@@ -21,7 +21,7 @@ namespace TranslateServer.Mongo
                         if (e.Command.ElementCount > 0)
                             logger.LogDebug("{CommandName} {CommandJson}", e.CommandName, e.Command);
                     });
-                };
+                };*/
 
             Client = new MongoClient(mongoClientSettings);
             Database = Client.GetDatabase("Translate");

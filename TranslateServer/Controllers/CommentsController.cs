@@ -16,10 +16,12 @@ namespace TranslateServer.Controllers
     public class CommentsController : ApiController
     {
         private readonly CommentsService _comments;
+        private readonly TranslateService _translate;
 
-        public CommentsController(CommentsService service)
+        public CommentsController(CommentsService service, TranslateService translate)
         {
             _comments = service;
+            _translate = translate;
         }
 
         public class SubmitRequest
@@ -42,6 +44,8 @@ namespace TranslateServer.Controllers
 
             await _comments.Insert(comment);
 
+            await RecalcComments(request.TranslateId);
+
             return Ok(comment);
         }
 
@@ -58,11 +62,26 @@ namespace TranslateServer.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
-            var result = await _comments.DeleteOne(c => c.Id == id && (IsAdmin || c.Author == UserLogin));
-            if (result.DeletedCount == 0)
+            var comment = await _comments.GetById(id);
+            if (comment == null)
                 return BadRequest();
 
+            await _comments.DeleteOne(c => c.Id == id && (IsAdmin || c.Author == UserLogin));
+            await RecalcComments(comment.TranslateId);
+
             return Ok();
+        }
+
+        private async Task RecalcComments(string translateId)
+        {
+            var count = await _comments.Collection.AsQueryable()
+                .Where(c => c.TranslateId == translateId)
+                .CountAsync();
+
+            await _translate
+                .Update(t => t.Id == translateId)
+                .Set(t => t.Comments, count)
+                .Execute();
         }
     }
 }

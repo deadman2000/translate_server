@@ -38,10 +38,10 @@ namespace TranslateServer.Services
             return cursor.ToEnumerable();
         }
 
-        public async Task<IEnumerable<T>> Query(Expression<Func<T, bool>> filter)
+        public async Task<List<T>> Query(Expression<Func<T, bool>> filter)
         {
             var cursor = await _collection.FindAsync(filter);
-            return cursor.ToEnumerable();
+            return await cursor.ToListAsync();
         }
 
         public MongoQuery<T> Query()

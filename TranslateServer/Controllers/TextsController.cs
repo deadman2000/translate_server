@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver.Linq;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,12 +17,14 @@ namespace TranslateServer.Controllers
         private readonly TextsService _texts;
         private readonly TranslateService _translate;
         private readonly VideoReferenceService _references;
+        private readonly CommentsService _comments;
 
-        public TextsController(TextsService texts, TranslateService translate, VideoReferenceService references)
+        public TextsController(TextsService texts, TranslateService translate, VideoReferenceService references, CommentsService comments)
         {
             _texts = texts;
             _translate = translate;
             _references = references;
+            _comments = comments;
         }
 
         [HttpGet]
@@ -38,7 +41,14 @@ namespace TranslateServer.Controllers
                 .Where(t => t.Project == project && t.Volume == volume && t.NextId == null && !t.Deleted)
                 .SortAsc(t => t.Number)
                 .Execute();
-            var tdict = trList.GroupBy(t => t.Number).ToDictionary(t => t.Key, t => t.Select(tr => new TranslateInfo(tr)).ToArray());
+
+            var comments = (await Task.WhenAll(trList.Where(t => t.Comments > 0).Select(t => _comments.Query(c => c.TranslateId == t.Id)).ToArray())).SelectMany(t => t);
+
+            var tdict = trList.GroupBy(t => t.Number)
+                .ToDictionary(
+                    t => t.Key,
+                    t => t.Select(tr => new TranslateInfo(tr, comments.Where(c => c.TranslateId == tr.Id))).ToArray()
+                );
 
             // References
             var refs = await _references.Query(r => r.Project == project && r.Volume == volume);

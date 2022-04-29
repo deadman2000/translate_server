@@ -22,5 +22,7 @@ namespace TranslateServer.Model
         public string NextId { get; set; }
 
         public bool Deleted { get; set; }
+
+        public int Comments { get; set; }
     }
 }

@@ -36,7 +36,7 @@ namespace TranslateServer.Helpers
             return this;
         }
 
-        public async Task<IEnumerable<T>> Execute()
+        public async Task<List<T>> Execute()
         {
             FilterDefinition<T> filter;
             if (filters.Count == 0)
@@ -52,7 +52,7 @@ namespace TranslateServer.Helpers
                 Limit = _limit
             };
             var result = await _collection.FindAsync(filter, options);
-            return result.ToEnumerable();
+            return await result.ToListAsync();
         }
     }
 }
