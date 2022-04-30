@@ -59,6 +59,7 @@ namespace TranslateServer.Controllers
                 Text = request.Text,
                 Author = UserLogin,
                 DateCreate = DateTime.UtcNow,
+                Letters = txt.Letters,
             };
 
             await _translate.Insert(translate);

@@ -62,14 +62,19 @@ namespace TranslateServer.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public ActionResult Me()
+        public async Task<ActionResult> Me([FromServices] TranslateService translate)
         {
-            var role = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).FirstOrDefault();
+            var user = await _users.Get(u => u.Login == UserLogin);
+            if (user == null)
+                return Forbid();
+
+            var letters = await translate.GetUserLetters(UserLogin);
 
             return Ok(new
             {
-                Login = UserLogin,
-                Role = role
+                user.Login,
+                user.Role,
+                letters,
             });
         }
 
