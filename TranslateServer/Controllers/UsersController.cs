@@ -105,9 +105,12 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpGet]
-        public async Task<ActionResult> GetList()
+        public async Task<ActionResult> GetList([FromServices] TranslateService translate)
         {
-            var users = await _users.All();
+            var users = (await _users.All()).ToList();
+            foreach (var user in users)
+                user.Letters = await translate.GetUserLetters(user.Login);
+            
             return Ok(users);
         }
 

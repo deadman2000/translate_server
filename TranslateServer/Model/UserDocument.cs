@@ -11,6 +11,8 @@ namespace TranslateServer.Model
 
         public string Role { get; set; }
 
+        public int Letters { get; set; }
+
         public void SetPassword(string pwd)
         {
             Password = BCrypt.Net.BCrypt.HashPassword(pwd);
