@@ -26,7 +26,7 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Get(string project)
         {
             var patches = await _patches.Collection.AsQueryable()
-                .Where(p => p.Project == project)
+                .Where(p => p.Project == project && !p.Deleted)
                 .OrderBy(p => p.FileName)
                 .ToListAsync();
             return Ok(patches);

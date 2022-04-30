@@ -16,5 +16,7 @@ namespace TranslateServer.Model
         public string User { get; set; }
 
         public DateTime UploadDate { get; set; }
+
+        public bool Deleted { get; set; }
     }
 }

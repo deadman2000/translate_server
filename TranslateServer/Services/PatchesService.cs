@@ -48,7 +48,14 @@ namespace TranslateServer.Services
             await gridFS.DownloadToStreamAsync(new ObjectId(fileId), destStream);
         }
 
-        public async Task Delete(string id)
+        public Task Delete(string id)
+        {
+            return Update(p => p.Id == id)
+                .Set(p => p.Deleted, true)
+                .Execute();
+        }
+
+        public async Task FullDelete(string id)
         {
             var patch = await Get(p => p.Id == id);
             if (patch == null) return;
