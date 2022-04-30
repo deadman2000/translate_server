@@ -119,41 +119,8 @@ namespace TranslateServer.Jobs
                 }
             }
 
-            var volList = await volumes.Query(v => v.Project == project.Code);
-            foreach (var vol in volList)
-            {
-                var res = await texts.Collection.Aggregate()
-                    .Match(t => t.Project == project.Code && t.Volume == vol.Code)
-                    .Group(t => t.Volume,
-                    g => new
-                    {
-                        Total = g.Sum(t => t.Letters),
-                        Count = g.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                await volumes.Update(v => v.Id == vol.Id)
-                    .Set(v => v.Letters, res.Total)
-                    .Set(v => v.Texts, res.Count)
-                    .Execute();
-            }
-
-            {
-                var res = await volumes.Collection.Aggregate()
-                    .Match(v => v.Project == project.Code)
-                    .Group(v => v.Project,
-                    g => new
-                    {
-                        Total = g.Sum(t => t.Letters),
-                        Count = g.Sum(t => t.Texts)
-                    })
-                    .FirstOrDefaultAsync();
-
-                await projects.Update(p => p.Id == project.Id)
-                    .Set(p => p.Letters, res.Total)
-                    .Set(p => p.Texts, res.Count)
-                    .Execute();
-            }
+            await volumes.RecalcLetters(project.Code, texts);
+            await projects.RecalcLetters(project.Code, volumes);
         }
 
         private async Task Cleanup()
