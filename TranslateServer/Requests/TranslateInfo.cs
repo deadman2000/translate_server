@@ -10,6 +10,7 @@ namespace TranslateServer.Requests
         {
             Id = tr.Id;
             Author = tr.Author;
+            Editor = tr.Editor;
             DateCreate = tr.DateCreate;
             Text = tr.Text;
             Comments = comments;
@@ -17,6 +18,7 @@ namespace TranslateServer.Requests
 
         public string Id { get; set; }
         public string Author { get; }
+        public string Editor { get; }
         public DateTime DateCreate { get; }
         public string Text { get; }
 

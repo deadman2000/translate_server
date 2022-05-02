@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;

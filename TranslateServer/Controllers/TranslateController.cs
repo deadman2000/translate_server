@@ -58,17 +58,30 @@ namespace TranslateServer.Controllers
                 Number = request.Number,
                 Text = request.Text,
                 Author = UserLogin,
+                Editor = UserLogin,
                 DateCreate = DateTime.UtcNow,
                 Letters = txt.Letters,
             };
 
+            if (request.TranslateId != null)
+            {
+                var prev = await _translate.GetById(request.TranslateId);
+                if (prev != null)
+                {
+                    translate.Author = prev.Author;
+                }
+            }
+
             await _translate.Insert(translate);
 
-            await _translate.Update(t => t.Id == request.TranslateId
-                                      && t.NextId == null
-                                      && !t.Deleted)
-                .Set(t => t.NextId, translate.Id)
-                .Execute();
+            if (request.TranslateId != null)
+            {
+                await _translate.Update(t => t.Id == request.TranslateId
+                                          && t.NextId == null
+                                          && !t.Deleted)
+                    .Set(t => t.NextId, translate.Id)
+                    .Execute();
+            }
 
             bool needUpdate = false;
             if (!txt.HasTranslate)
@@ -209,10 +222,10 @@ namespace TranslateServer.Controllers
                 .Execute();
         }
 
-        [HttpGet("{translateId}/history")]
-        public async Task<ActionResult> History(string translateId)
+        [HttpGet("{id}/history")]
+        public async Task<ActionResult> History(string id)
         {
-            var translate = await _translate.GetById(translateId);
+            var translate = await _translate.GetById(id);
             if (translate == null) return NotFound();
 
             var all = await _translate.Query(t => t.Project == translate.Project && t.Volume == translate.Volume && t.Number == translate.Number && t.NextId != null);
