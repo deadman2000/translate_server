@@ -40,7 +40,10 @@ namespace TranslateServer.Services
             await gridFS.DeleteAsync(new ObjectId(patch.FileId));
             var id = await gridFS.UploadFromStreamAsync(file.FileName, file.OpenReadStream());
             patch.FileId = id.ToString();
-            await Update(p => p.Id == patch.Id).Set(p => p.FileId, patch.FileId).Execute();
+            await Update(p => p.Id == patch.Id)
+                .Set(p => p.FileId, patch.FileId)
+                .Set(p => p.UploadDate, DateTime.UtcNow)
+                .Execute();
         }
 
         public async Task Download(string fileId, Stream destStream)
