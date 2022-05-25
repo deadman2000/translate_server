@@ -9,7 +9,6 @@ namespace TranslateServer.Requests
         public TranslateInfo(TextTranslate tr, IEnumerable<Comment> comments = null)
         {
             Id = tr.Id;
-            FirstId = tr.FirstId;
             Author = tr.Author;
             Editor = tr.Editor;
             DateCreate = tr.DateCreate;
@@ -18,7 +17,6 @@ namespace TranslateServer.Requests
         }
 
         public string Id { get; set; }
-        public string FirstId { get; set; }
         public string Author { get; }
         public string Editor { get; }
         public DateTime DateCreate { get; }

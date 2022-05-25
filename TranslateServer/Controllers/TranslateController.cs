@@ -21,14 +21,16 @@ namespace TranslateServer.Controllers
         private readonly VolumesService _volumes;
         private readonly ProjectsService _projects;
         private readonly SearchService _search;
+        private readonly CommentsService _comments;
 
-        public TranslateController(TranslateService translate, TextsService texts, VolumesService volumes, ProjectsService projects, SearchService search)
+        public TranslateController(TranslateService translate, TextsService texts, VolumesService volumes, ProjectsService projects, SearchService search, CommentsService comments)
         {
             _translate = translate;
             _texts = texts;
             _volumes = volumes;
             _projects = projects;
             _search = search;
+            _comments = comments;
         }
 
         public class SubmitRequest
@@ -107,7 +109,9 @@ namespace TranslateServer.Controllers
                 await _search.DeleteTranslate(request.TranslateId);
             await _search.IndexTranslate(translate);
 
-            return Ok(new TranslateInfo(translate));
+            var comments = await _comments.GetComments(translate);
+
+            return Ok(new TranslateInfo(translate, comments));
         }
 
         [HttpDelete("{id}")]

@@ -136,7 +136,8 @@ namespace TranslateServer.Controllers
 
             await elastic.DeleteProject(shortName);
             await elastic.InsertTexts(textsList);
-            await elastic.InsertTranslates(tr.ToList());
+            if (tr.Any())
+                await elastic.InsertTranslates(tr.ToList());
 
             return Ok();
         }

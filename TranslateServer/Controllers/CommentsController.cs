@@ -38,7 +38,7 @@ namespace TranslateServer.Controllers
 
             var comment = new Comment
             {
-                TranslateId = request.TranslateId,
+                TranslateId = tr.FirstId ?? tr.Id,
                 Project = tr.Project,
                 Volume = tr.Volume,
                 Text = request.Text,
