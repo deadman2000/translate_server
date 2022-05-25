@@ -34,17 +34,19 @@ namespace TranslateServer.Controllers
         [HttpPost("submit")]
         public async Task<ActionResult> Submit([FromBody] SubmitRequest request)
         {
+            var tr = await _translate.GetById(request.TranslateId);
+
             var comment = new Comment
             {
                 TranslateId = request.TranslateId,
+                Project = tr.Project,
+                Volume = tr.Volume,
                 Text = request.Text,
                 Author = UserLogin,
                 DateCreate = DateTime.UtcNow,
             };
 
             await _comments.Insert(comment);
-
-            await RecalcComments(request.TranslateId);
 
             return Ok(comment);
         }
@@ -67,21 +69,8 @@ namespace TranslateServer.Controllers
                 return BadRequest();
 
             await _comments.DeleteOne(c => c.Id == id && (IsAdmin || c.Author == UserLogin));
-            await RecalcComments(comment.TranslateId);
 
             return Ok();
-        }
-
-        private async Task RecalcComments(string translateId)
-        {
-            var count = await _comments.Collection.AsQueryable()
-                .Where(c => c.TranslateId == translateId)
-                .CountAsync();
-
-            await _translate
-                .Update(t => t.Id == translateId)
-                .Set(t => t.Comments, count)
-                .Execute();
         }
     }
 }

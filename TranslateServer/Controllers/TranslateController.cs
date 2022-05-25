@@ -69,6 +69,7 @@ namespace TranslateServer.Controllers
                 if (prev != null)
                 {
                     translate.Author = prev.Author;
+                    translate.FirstId = prev.FirstId ?? prev.Id;
                 }
             }
 

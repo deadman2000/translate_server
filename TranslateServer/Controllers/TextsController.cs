@@ -42,12 +42,12 @@ namespace TranslateServer.Controllers
                 .SortAsc(t => t.Number)
                 .Execute();
 
-            var comments = (await Task.WhenAll(trList.Where(t => t.Comments > 0).Select(t => _comments.Query(c => c.TranslateId == t.Id)).ToArray())).SelectMany(t => t);
+            var comments = await _comments.Query(c => c.Project == project && c.Volume == volume);
 
             var tdict = trList.GroupBy(t => t.Number)
                 .ToDictionary(
                     t => t.Key,
-                    t => t.Select(tr => new TranslateInfo(tr, comments.Where(c => c.TranslateId == tr.Id))).ToArray()
+                    t => t.Select(tr => new TranslateInfo(tr, comments.Where(c => c.TranslateId == tr.FirstId || c.TranslateId == tr.Id))).ToArray()
                 );
 
             // References

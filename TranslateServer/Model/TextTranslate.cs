@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace TranslateServer.Model
 {
@@ -27,9 +28,12 @@ namespace TranslateServer.Model
         [BsonRepresentation(BsonType.ObjectId)]
         public string NextId { get; set; }
 
-        public bool Deleted { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [BsonIgnoreIfDefault]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string FirstId { get; set; }
 
-        public int Comments { get; set; }
+        public bool Deleted { get; set; }
 
         public int Letters { get; set; }
 
