@@ -1,4 +1,5 @@
 ﻿using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
@@ -47,6 +48,11 @@ namespace TranslateServer.Services
         public MongoQuery<T> Query()
         {
             return new MongoQuery<T>(_collection);
+        }
+
+        public IMongoQueryable<T> Queryable()
+        {
+            return _collection.AsQueryable();
         }
 
         public Task Insert(T doc)

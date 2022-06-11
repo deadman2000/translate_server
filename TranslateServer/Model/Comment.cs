@@ -16,6 +16,9 @@ namespace TranslateServer.Model
         [JsonIgnore]
         public string Volume { get; set; }
 
+        [JsonIgnore]
+        public int? Number { get; set; }
+
         public string Author { get; set; }
 
         public DateTime DateCreate { get; set; }

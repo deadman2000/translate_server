@@ -111,7 +111,7 @@ namespace TranslateServer.Controllers
             var result = await _tasks.Complete(request.TaskId, request.Runner);
             if (result.ModifiedCount > 0)
             {
-                var sum = _tasks.Collection.AsQueryable()
+                var sum = _tasks.Queryable()
                     .Where(t => t.Completed && t.VideoId == task.VideoId && t.Type == VideoTask.GET_TEXT)
                     .Sum(t => t.Count * t.FrameSkip);
 

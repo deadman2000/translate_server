@@ -65,6 +65,7 @@ namespace TranslateServer
             services.AddScoped<VideoTasksService>();
             services.AddScoped<VideoTextService>();
             services.AddScoped<VideoReferenceService>();
+            services.AddScoped<CommentNotifyService>();
 
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();

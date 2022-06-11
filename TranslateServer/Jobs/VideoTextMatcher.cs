@@ -176,7 +176,7 @@ namespace TranslateServer.Jobs
                 .Set(r => r.Rate, matchRate)
                 .Execute();
 
-            var maxScore = _videoReference.Collection.AsQueryable()
+            var maxScore = _videoReference.Queryable()
                 .Where(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number)
                 .Max(r => r.Score);
 

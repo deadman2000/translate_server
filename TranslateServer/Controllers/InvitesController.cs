@@ -26,7 +26,7 @@ namespace TranslateServer.Controllers
         [HttpGet]
         public async Task<ActionResult> Get()
         {
-            var invites = await _invites.Collection.AsQueryable()
+            var invites = await _invites.Queryable()
                 .Where(i => true)
                 .OrderByDescending(i => i.DateCreate)
                 .ToListAsync();

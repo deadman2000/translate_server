@@ -15,10 +15,12 @@ namespace TranslateServer.Controllers
     public class UsersController : ApiController
     {
         private readonly UsersService _users;
+        private readonly CommentNotifyService _commentNotify;
 
-        public UsersController(UsersService users)
+        public UsersController(UsersService users, CommentNotifyService commentNotify)
         {
             _users = users;
+            _commentNotify = commentNotify;
         }
 
         // http://localhost:5000/api/users/init
@@ -68,12 +70,16 @@ namespace TranslateServer.Controllers
                 return Forbid();
 
             var letters = await translate.GetUserLetters(UserLogin);
+            var unread = _commentNotify.Queryable()
+                .Where(n => n.User == UserLogin && !n.Read)
+                .Count();
 
             return Ok(new
             {
                 user.Login,
                 user.Role,
                 letters,
+                unread,
             });
         }
 
