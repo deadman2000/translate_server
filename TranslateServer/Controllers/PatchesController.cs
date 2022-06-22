@@ -39,7 +39,7 @@ namespace TranslateServer.Controllers
         {
             var patch = await _patches.Get(p => p.Project == project && p.FileName == file.FileName.ToLower());
             if (patch != null)
-                await _patches.Update(patch, file);
+                await _patches.Update(patch, file, UserLogin);
             else
                 patch = await _patches.Save(project, file, UserLogin);
             return Ok(patch);

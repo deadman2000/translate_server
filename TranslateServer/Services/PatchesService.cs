@@ -35,7 +35,7 @@ namespace TranslateServer.Services
             return patch;
         }
 
-        public async Task Update(Patch patch, IFormFile file)
+        public async Task Update(Patch patch, IFormFile file, string user)
         {
             await gridFS.DeleteAsync(new ObjectId(patch.FileId));
             var id = await gridFS.UploadFromStreamAsync(file.FileName, file.OpenReadStream());
@@ -43,6 +43,7 @@ namespace TranslateServer.Services
             await Update(p => p.Id == patch.Id)
                 .Set(p => p.FileId, patch.FileId)
                 .Set(p => p.UploadDate, DateTime.UtcNow)
+                .Set(p => p.User, user)
                 .Execute();
         }
 
