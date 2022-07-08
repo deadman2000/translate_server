@@ -120,6 +120,16 @@ namespace TranslateServer.Controllers
         }
 
         [AuthAdmin]
+        [HttpGet("{id}/chart")]
+        public async Task<ActionResult> GetChart(string id, [FromServices] TranslateService translate)
+        {
+            var user = await _users.GetById(id);
+            if (user == null) return NotFound();
+            var chart = await translate.GetChart(user.Login);
+            return Ok(chart);
+        }
+
+        [AuthAdmin]
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
