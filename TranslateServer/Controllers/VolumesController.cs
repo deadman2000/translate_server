@@ -17,6 +17,13 @@ namespace TranslateServer.Controllers
             _volumes = volumes;
         }
 
+        [HttpGet]
+        public async Task<ActionResult> Get(string project)
+        {
+            var volumes = await _volumes.Query(v => v.Project == project);
+            return Ok(volumes);
+        }
+
         [HttpGet("{volume}")]
         public async Task<ActionResult> Get(string project, string volume)
         {
@@ -27,11 +34,19 @@ namespace TranslateServer.Controllers
             return Ok(vol);
         }
 
-        [HttpGet]
-        public async Task<ActionResult> Get(string project)
+        public class UpdateRequest
         {
-            var volumes = await _volumes.Query(v => v.Project == project);
-            return Ok(volumes);
+            public string Description { get; set; }
+        }
+
+        [HttpPost("{volume}")]
+        public async Task<ActionResult> Update(string project, string volume, UpdateRequest request)
+        {
+            await _volumes.Update(v => v.Project == project && v.Code == volume)
+                .Set(v => v.Description, request.Description)
+                .Execute();
+
+            return Ok();
         }
     }
 }

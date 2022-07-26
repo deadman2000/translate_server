@@ -21,6 +21,8 @@ namespace TranslateServer.Model
 
         public string Name { get; set; }
 
+        public string Description { get; set; }
+
         public int Letters { get; set; }
 
         public int Texts { get; set; }
