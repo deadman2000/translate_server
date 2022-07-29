@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -70,9 +71,9 @@ namespace TranslateServer.Controllers
                 return Forbid();
 
             var letters = await translate.GetUserLetters(UserLogin);
-            var unread = _commentNotify.Queryable()
+            var unread = await _commentNotify.Queryable()
                 .Where(n => n.User == UserLogin && !n.Read)
-                .Count();
+                .CountAsync();
 
             return Ok(new
             {

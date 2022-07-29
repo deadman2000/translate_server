@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,9 +31,10 @@ namespace TranslateServer.Controllers
         [HttpGet]
         public async Task<ActionResult> Get()
         {
-            var notifies = _commentNotify.Queryable()
+            var notifies = await _commentNotify.Queryable()
                 .Where(n => n.User == UserLogin)
-                .OrderByDescending(n => n.Date);
+                .OrderByDescending(n => n.Date)
+                .ToListAsync();
 
             var commIds = notifies.Select(n => n.CommentId).ToArray();
             var cursor = await _comments.Collection.FindAsync(Builders<Comment>.Filter.In(n => n.Id, commIds));
@@ -118,10 +120,10 @@ namespace TranslateServer.Controllers
                     }
 
                     // Находим всех, кто комментировал
-                    var users = _comments.Queryable().Where(c => c.TranslateId == tr.Id)
+                    var users = await _comments.Queryable().Where(c => c.TranslateId == tr.Id)
                         .Select(c => c.Author)
                         .Distinct()
-                        .ToList();
+                        .ToListAsync();
 
                     // Отправляем уведомление другим комментировавшим, если он на автор комментария
                     foreach (var user in users)

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -111,9 +112,9 @@ namespace TranslateServer.Controllers
             var result = await _tasks.Complete(request.TaskId, request.Runner);
             if (result.ModifiedCount > 0)
             {
-                var sum = _tasks.Queryable()
+                var sum = await _tasks.Queryable()
                     .Where(t => t.Completed && t.VideoId == task.VideoId && t.Type == VideoTask.GET_TEXT)
-                    .Sum(t => t.Count * t.FrameSkip);
+                    .SumAsync(t => t.Count * t.FrameSkip);
 
                 if (sum.HasValue)
                 {

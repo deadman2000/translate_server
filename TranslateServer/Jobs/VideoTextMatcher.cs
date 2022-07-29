@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using Quartz;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -176,9 +176,9 @@ namespace TranslateServer.Jobs
                 .Set(r => r.Rate, matchRate)
                 .Execute();
 
-            var maxScore = _videoReference.Queryable()
+            var maxScore = await _videoReference.Queryable()
                 .Where(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number)
-                .Max(r => r.Score);
+                .MaxAsync(r => r.Score);
 
             if (maxScore == null) return;
             var scoreThr = maxScore * 0.8;
