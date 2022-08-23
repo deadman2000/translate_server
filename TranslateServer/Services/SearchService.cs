@@ -74,10 +74,15 @@ namespace TranslateServer.Services
 
         // https://www.elastic.co/guide/en/elasticsearch/client/net-api/current/writing-queries.html
 
-        public async Task<IEnumerable<SearchResultItem>> Search(string query)
+        public async Task<IEnumerable<SearchResultItem>> Search(string query, bool inSource, bool inTranslated)
         {
+            List<string> indexes = new();
+            if (inSource) indexes.Add(SOURCE_TEXT_INDEX);
+            if (inTranslated) indexes.Add(TRANSLATE_INDEX);
+            if (indexes.Count == 0) return new List<SearchResultItem>();
+
             var resp = await _client.SearchAsync<TextIndex>(s => s
-                .Index(new string[] { SOURCE_TEXT_INDEX, TRANSLATE_INDEX })
+                .Index(indexes.ToArray())
                 .IgnoreUnavailable()
                 .Query(q => q
                     .Match(m => m
