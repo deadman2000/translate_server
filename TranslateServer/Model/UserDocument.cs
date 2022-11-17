@@ -23,6 +23,11 @@ namespace TranslateServer.Model
             return BCrypt.Net.BCrypt.Verify(pwd, Password);
         }
 
+        public static string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
         public const string ADMIN = "Admin";
         public const string EDITOR = "Editor";
     }

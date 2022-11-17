@@ -21,7 +21,7 @@ namespace TranslateServer.Services
 
         public async Task<ChartRow[]> GetChart(string login)
         {
-            var translates = await Query(t => t.Author == login && t.NextId == null && !t.Deleted);
+            var translates = await Query(t => t.Author == login && t.FirstId == null && !t.Deleted);
             var result = translates.Distinct(TextTranslate.Comparer)
                 .GroupBy(t => t.DateCreate.Date)
                 .Select(g => new ChartRow

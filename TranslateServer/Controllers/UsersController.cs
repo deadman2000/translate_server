@@ -95,7 +95,7 @@ namespace TranslateServer.Controllers
         {
             await _users.Update()
                 .Where(u => u.Login == UserLogin)
-                .Set(u => u.Password, Model.User.HashPassword(request.Password))
+                .Set(u => u.Password, UserDocument.HashPassword(request.Password))
                 .Execute();
             return Ok();
         }
@@ -151,7 +151,7 @@ namespace TranslateServer.Controllers
         {
             await _users.Update()
                 .Where(u => u.Id == request.UserId)
-                .Set(u => u.Password, Model.User.HashPassword(request.Password))
+                .Set(u => u.Password, UserDocument.HashPassword(request.Password))
                 .Execute();
             return Ok();
         }
