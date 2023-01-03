@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using TranslateServer.Helpers;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -18,10 +19,10 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class ProjectsController : ApiController
     {
-        private readonly ProjectsService _project;
+        private readonly ProjectsStore _project;
         private readonly ServerConfig _config;
 
-        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsService project)
+        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsStore project)
         {
             _project = project;
             _config = opConfig.Value;
@@ -109,7 +110,7 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpPost("{shortName}/reindex")]
-        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TextsService texts, [FromServices] TranslateService translate, [FromServices] VolumesService volumes)
+        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TextsStore texts, [FromServices] TranslateStore translate, [FromServices] VolumesStore volumes)
         {
             var textsList = await texts.Query(t => t.Project == shortName);
             var tr = await translate.Query(t => t.Project == shortName && t.NextId == null && !t.Deleted);
@@ -144,7 +145,7 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpDelete("{shortName}")]
-        public async Task<ActionResult> Delete(string shortName, [FromServices] VolumesService volumes, [FromServices] TextsService texts)
+        public async Task<ActionResult> Delete(string shortName, [FromServices] VolumesStore volumes, [FromServices] TextsStore texts)
         {
             await volumes.Delete(v => v.Project == shortName);
             await texts.Delete(v => v.Project == shortName);

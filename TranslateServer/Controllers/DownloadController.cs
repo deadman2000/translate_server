@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -14,10 +15,10 @@ namespace TranslateServer.Controllers
     public class DownloadController : ApiController
     {
         private readonly SCIService _sci;
-        private readonly TranslateService _translate;
-        private readonly PatchesService _patches;
+        private readonly TranslateStore _translate;
+        private readonly PatchesStore _patches;
 
-        public DownloadController(SCIService sci, TranslateService translate, PatchesService patches)
+        public DownloadController(SCIService sci, TranslateStore translate, PatchesStore patches)
         {
             _sci = sci;
             _translate = translate;

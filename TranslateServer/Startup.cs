@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using TranslateServer.Jobs;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer
 {
@@ -53,34 +54,40 @@ namespace TranslateServer
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));
 
             services.AddScoped<MongoService>();
-            services.AddScoped<UsersService>();
-            services.AddScoped<ProjectsService>();
-            services.AddScoped<VolumesService>();
-            services.AddScoped<TextsService>();
-            services.AddScoped<TranslateService>();
-            services.AddScoped<CommentsService>();
-            services.AddScoped<PatchesService>();
-            services.AddScoped<InvitesService>();
-            services.AddScoped<VideoService>();
-            services.AddScoped<VideoTasksService>();
-            services.AddScoped<VideoTextService>();
-            services.AddScoped<VideoReferenceService>();
-            services.AddScoped<CommentNotifyService>();
+            services.AddScoped<UsersStore>();
+            services.AddScoped<ProjectsStore>();
+            services.AddScoped<VolumesStore>();
+            services.AddScoped<TextsStore>();
+            services.AddScoped<TranslateStore>();
+            services.AddScoped<CommentsStore>();
+            services.AddScoped<PatchesStore>();
+            services.AddScoped<InvitesStore>();
+            services.AddScoped<VideoStore>();
+            services.AddScoped<VideoTasksStore>();
+            services.AddScoped<VideoTextStore>();
+            services.AddScoped<VideoReferenceStore>();
+            services.AddScoped<CommentNotifyStore>();
 
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();
+            services.AddScoped<TranslateService>();
 
             services.AddSingleton<RunnersService>();
 
             if (!Configuration.GetValue("DisableJobs", false))
             {
-                services.AddQuartz(ResourceExtractor.Schedule);
-                services.AddQuartz(VideoTextMatcher.Schedule);
-
-                services.AddQuartzHostedService(options =>
+                services.AddQuartz(q =>
                 {
-                    options.WaitForJobsToComplete = true;
+                    q.SchedulerId = "Scheduler-Core";
+                    q.UseMicrosoftDependencyInjectionJobFactory();
+                    q.UseSimpleTypeLoader();
+                    q.UseInMemoryStore();
+
+                    ResourceExtractor.Schedule(q);
+                    VideoTextMatcher.Schedule(q);
                 });
+
+                services.AddQuartzHostedService();
             }
 
             services.AddControllers();

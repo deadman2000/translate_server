@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -10,9 +10,9 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class VolumesController : ApiController
     {
-        private readonly VolumesService _volumes;
+        private readonly VolumesStore _volumes;
 
-        public VolumesController(VolumesService volumes)
+        public VolumesController(VolumesStore volumes)
         {
             _volumes = volumes;
         }

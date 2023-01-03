@@ -1,14 +1,15 @@
 ﻿using MongoDB.Driver;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class TextsService : MongoBaseService<TextResource>
+    public class TextsStore : MongoBaseService<TextResource>
     {
         static bool IsInit = false;
 
-        public TextsService(MongoService mongo) : base(mongo, "Texts")
+        public TextsStore(MongoService mongo) : base(mongo, "Texts")
         {
             if (!IsInit)
             {

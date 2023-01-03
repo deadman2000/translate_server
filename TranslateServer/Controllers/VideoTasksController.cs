@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System.Collections.Generic;
 using System.IO;
@@ -7,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -14,11 +14,11 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class VideoTasksController : ApiController
     {
-        private readonly VideoTasksService _tasks;
+        private readonly VideoTasksStore _tasks;
         private readonly RunnersService _runners;
-        private readonly VideoService _videos;
+        private readonly VideoStore _videos;
 
-        public VideoTasksController(VideoTasksService tasks, RunnersService runners, VideoService videos)
+        public VideoTasksController(VideoTasksStore tasks, RunnersService runners, VideoStore videos)
         {
             _tasks = tasks;
             _runners = runners;
@@ -90,7 +90,7 @@ namespace TranslateServer.Controllers
         }
 
         [HttpPost("texts")]
-        public async Task<ActionResult> Texts([FromBody] TextsRequest request, [FromServices] VideoTextService videoText, [FromServices] VideoService video)
+        public async Task<ActionResult> Texts([FromBody] TextsRequest request, [FromServices] VideoTextStore videoText, [FromServices] VideoStore video)
         {
             _runners.RegisterActivity(request.Runner, Request);
 

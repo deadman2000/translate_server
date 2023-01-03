@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Driver;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts1_1;
 using SCI_Lib.Resources.View;
@@ -10,25 +9,26 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Jobs
 {
     public class Worker
     {
-        private readonly TextsService texts;
-        private readonly VolumesService volumes;
+        private readonly TextsStore texts;
+        private readonly VolumesStore volumes;
         private readonly SCIService sci;
-        private readonly ProjectsService projects;
+        private readonly ProjectsStore projects;
         private readonly Project project;
         private SCI_Lib.SCIPackage package;
 
         public Worker(IServiceProvider serviceProvider, Project project)
         {
             using var scope = serviceProvider.CreateScope();
-            texts = scope.ServiceProvider.GetService<TextsService>();
-            volumes = scope.ServiceProvider.GetService<VolumesService>();
+            texts = scope.ServiceProvider.GetService<TextsStore>();
+            volumes = scope.ServiceProvider.GetService<VolumesStore>();
             sci = scope.ServiceProvider.GetService<SCIService>();
-            projects = scope.ServiceProvider.GetService<ProjectsService>();
+            projects = scope.ServiceProvider.GetService<ProjectsStore>();
             this.project = project;
         }
 
@@ -44,13 +44,16 @@ namespace TranslateServer.Jobs
             {
                 var strings = txt.GetStrings();
                 if (strings.Length == 0) continue;
+                if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
 
                 var volume = new Volume(project, txt.FileName);
                 await volumes.Insert(volume);
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await texts.Insert(new TextResource(project, volume, i, strings[i]));
+                    var val = strings[i];
+                    if (!string.IsNullOrWhiteSpace(val))
+                        await texts.Insert(new TextResource(project, volume, i, val));
                 }
             }
 
@@ -58,13 +61,16 @@ namespace TranslateServer.Jobs
             {
                 var strings = scr.GetStrings();
                 if (strings == null || strings.Length == 0) continue;
+                if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
 
                 var volume = new Volume(project, scr.FileName);
                 await volumes.Insert(volume);
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    await texts.Insert(new TextResource(project, volume, i, strings[i]));
+                    var val = strings[i];
+                    if (!string.IsNullOrWhiteSpace(val))
+                        await texts.Insert(new TextResource(project, volume, i, val));
                 }
             }
 
@@ -73,11 +79,12 @@ namespace TranslateServer.Jobs
             {
                 var records = msg.GetMessages();
                 if (records.Count == 0) continue;
+                if (!records.Any(r => !string.IsNullOrWhiteSpace(r.Text))) continue;
 
                 var volume = new Volume(project, msg.FileName);
                 await volumes.Insert(volume);
 
-                Dictionary<ushort, IEnumerable<Object1_1>> nounObjects = null;
+                /*Dictionary<ushort, IEnumerable<Object1_1>> nounObjects = null;
                 if (package.GetResource<ResVocab>(997) != null)
                 {
                     var scrRes = package.GetResource<ResScript>(msg.Number);
@@ -92,13 +99,14 @@ namespace TranslateServer.Jobs
                             .GroupBy(p => p.n, p => p.o)
                             .ToDictionary(g => g.Key, g => (IEnumerable<Object1_1>)g.ToList());
                     }
-                }
+                }*/
 
                 for (int i = 0; i < records.Count; i++)
                 {
                     var r = records[i];
+                    if (string.IsNullOrWhiteSpace(r.Text)) continue;
 
-                    List<string> noun = null;
+                    /*List<string> noun = null;
                     if (nounObjects != null && nounObjects.TryGetValue(r.Noun, out var objects))
                     {
                         noun = new List<string>();
@@ -108,13 +116,13 @@ namespace TranslateServer.Jobs
                             if (!String.IsNullOrEmpty(link))
                                 noun.Add(link);
                         }
-                    }
+                    }*/
 
                     await texts.Insert(new TextResource(project, volume, i, r.Text)
                     {
                         Talker = r.Talker,
                         Verb = r.Verb,
-                        Noun = noun
+                        //Noun = noun
                     });
                 }
             }

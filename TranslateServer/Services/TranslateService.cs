@@ -1,45 +1,145 @@
-﻿using MongoDB.Driver;
-using System;
-using System.Linq;
+﻿using TranslateServer.Model;
+using TranslateServer.Store;
+using MongoDB.Driver;
 using System.Threading.Tasks;
-using TranslateServer.Model;
-using TranslateServer.Mongo;
+using System.Linq;
+using System;
 
 namespace TranslateServer.Services
 {
-    public class TranslateService : MongoBaseService<TextTranslate>
+    public class TranslateService
     {
-        public TranslateService(MongoService mongo) : base(mongo, "Translate")
+        private readonly TranslateStore _translate;
+        private readonly TextsStore _texts;
+        private readonly VolumesStore _volumes;
+        private readonly ProjectsStore _projects;
+        private readonly SearchService _search;
+        private readonly CommentsStore _comments;
+
+        public TranslateService(TranslateStore translate, TextsStore texts, VolumesStore volumes, ProjectsStore projects, SearchService search, CommentsStore comments)
         {
+            _translate = translate;
+            _texts = texts;
+            _volumes = volumes;
+            _projects = projects;
+            _search = search;
+            _comments = comments;
         }
 
-        public async Task<int> GetUserLetters(string login)
+        public async Task UpdateVolumeProgress(string project, string volume)
         {
-            var translates = await Query(t => t.Author == login && t.NextId == null && !t.Deleted);
-            return translates.Distinct(TextTranslate.Comparer).Sum(t => t.Letters);
-        }
-
-        public async Task<ChartRow[]> GetChart(string login)
-        {
-            var translates = await Query(t => t.Author == login && t.FirstId == null && !t.Deleted);
-            var result = translates.Distinct(TextTranslate.Comparer)
-                .GroupBy(t => t.DateCreate.Date)
-                .Select(g => new ChartRow
+            var translated = await _texts.Collection.Aggregate()
+                .Match(t => t.Project == project && t.Volume == volume && t.HasTranslate)
+                .Group(t => true,
+                g => new
                 {
-                    D = ((DateTimeOffset)g.Key).ToUnixTimeSeconds(),
-                    L = g.Sum(t => t.Letters)
+                    Letters = g.Sum(t => t.Letters),
+                    Count = g.Count()
                 })
-                .ToArray();
+                .FirstOrDefaultAsync();
 
-            for (int i = 0; i < result.Length - 1; i++)
-                result[i + 1].L += result[i].L;
-            return result;
+            var approved = await _texts.Collection.Aggregate()
+                .Match(t => t.Project == project && t.Volume == volume && t.TranslateApproved)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(t => t.Letters),
+                    Count = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            await _volumes.Update(v => v.Project == project && v.Code == volume)
+                .Set(v => v.TranslatedLetters, translated != null ? translated.Letters : 0)
+                .Set(v => v.TranslatedTexts, translated != null ? translated.Count : 0)
+                .Set(v => v.ApprovedLetters, approved != null ? approved.Letters : 0)
+                .Set(v => v.ApprovedTexts, approved != null ? approved.Count : 0)
+                .Execute();
         }
 
-        public class ChartRow
+        public async Task UpdateProjectProgress(string project)
         {
-            public long D { get; set; }
-            public int L { get; set; }
+            var res = await _volumes.Collection.Aggregate()
+                .Match(t => t.Project == project)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(v => v.TranslatedLetters),
+                    Count = g.Sum(v => v.TranslatedTexts),
+                    ALetters = g.Sum(v => v.ApprovedLetters),
+                    ACount = g.Sum(v => v.ApprovedTexts),
+                })
+                .FirstOrDefaultAsync();
+
+            await _projects.Update(p => p.Code == project)
+                .Set(p => p.TranslatedLetters, res.Letters)
+                .Set(p => p.TranslatedTexts, res.Count)
+                .Set(p => p.ApprovedLetters, res.ALetters)
+                .Set(p => p.ApprovedTexts, res.ACount)
+                .Execute();
+        }
+
+        public async Task<TextTranslate> Submit(string project, string volume, int number, string text, string author, string prevTranslateId = null)
+        {
+            var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
+            if (txt == null)
+                return null;
+
+            TextTranslate translate = new()
+            {
+                Project = project,
+                Volume = volume,
+                Number = number,
+                Text = text,
+                Author = author,
+                Editor = author,
+                DateCreate = DateTime.UtcNow,
+                Letters = txt.Letters,
+            };
+
+            if (prevTranslateId != null)
+            {
+                var prev = await _translate.GetById(prevTranslateId);
+                if (prev != null)
+                {
+                    translate.Author = prev.Author;
+                    translate.FirstId = prev.FirstId ?? prev.Id;
+                }
+            }
+
+            await _translate.Insert(translate);
+
+            if (prevTranslateId != null)
+            {
+                await _translate.Update(t => t.Id == prevTranslateId
+                                          && t.NextId == null
+                                          && !t.Deleted)
+                    .Set(t => t.NextId, translate.Id)
+                    .Execute();
+            }
+
+            bool needUpdate = false;
+            if (!txt.HasTranslate)
+            {
+                await _texts.Update(t => t.Id == txt.Id).Set(t => t.HasTranslate, true).Execute();
+                needUpdate = true;
+            }
+
+            if (txt.TranslateApproved)
+            {
+                await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, false).Execute();
+                needUpdate = true;
+            }
+            if (needUpdate)
+                await UpdateVolumeProgress(project, volume);
+
+            await _volumes.Update(v => v.Project == project && v.Code == volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
+            await _projects.Update(p => p.Code == project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();
+
+            if (prevTranslateId != null)
+                await _search.DeleteTranslate(prevTranslateId);
+            await _search.IndexTranslate(translate);
+
+            return translate;
         }
     }
 }

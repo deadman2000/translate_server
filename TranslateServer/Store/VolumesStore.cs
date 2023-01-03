@@ -3,18 +3,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class VolumesService : MongoBaseService<Volume>
+    public class VolumesStore : MongoBaseService<Volume>
     {
-        public VolumesService(MongoService mongo) : base(mongo, "Volumes")
+        public VolumesStore(MongoService mongo) : base(mongo, "Volumes")
         {
             var indexKeysDefinition = Builders<Volume>.IndexKeys.Ascending(v => v.Project);
             _collection.Indexes.CreateOneAsync(new CreateIndexModel<Volume>(indexKeysDefinition));
         }
 
-        public async Task RecalcLetters(string project, TextsService texts)
+        public async Task RecalcLetters(string project, TextsStore texts)
         {
             var volList = await Query(v => v.Project == project);
             foreach (var vol in volList)
@@ -29,10 +30,13 @@ namespace TranslateServer.Services
                     })
                     .FirstOrDefaultAsync();
 
-                await Update(v => v.Id == vol.Id)
-                    .Set(v => v.Letters, res.Total)
-                    .Set(v => v.Texts, res.Count)
-                    .Execute();
+                if (res != null)
+                {
+                    await Update(v => v.Id == vol.Id)
+                        .Set(v => v.Letters, res.Total)
+                        .Set(v => v.Texts, res.Count)
+                        .Execute();
+                }
             }
         }
     }

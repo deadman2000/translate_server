@@ -18,7 +18,7 @@ namespace TranslateServer.Services
         {
             var url = config.GetConnectionString("Elastic");
 
-            var settings = new ConnectionSettings(new Uri(url));
+            var settings = new ConnectionSettings(new Uri(url)).DisableDirectStreaming();
 
             _client = new ElasticClient(settings);
         }
@@ -122,6 +122,61 @@ namespace TranslateServer.Services
             });
         }
 
+        public async Task<IEnumerable<SearchResultItem>> Search(string project, string query, bool inSource, bool inTranslated)
+        {
+            if (project == null) return await Search(query, inSource, inTranslated);
+
+            List<string> indexes = new();
+            if (inSource) indexes.Add(SOURCE_TEXT_INDEX);
+            if (inTranslated) indexes.Add(TRANSLATE_INDEX);
+            if (indexes.Count == 0) return new List<SearchResultItem>();
+
+            var resp = await _client.SearchAsync<TextIndex>(s => s
+                .Index(indexes.ToArray())
+                .IgnoreUnavailable()
+                .Query(q => q
+                    .Bool(b => b
+                        .Filter(f => f.Term(f => f.Project, project))
+                        .Must(m => m
+                            .Match(m => m
+                                .Field(f => f.Text).Query(query)
+                                //.Fuzziness(Fuzziness.Auto)
+                            )
+                        )
+                    )
+                )
+                /*.Query(q=>q
+                    .Fuzzy(z=>z
+                        .Field(f=>f.Text).Value(query)
+                    )
+                )*/
+                .Highlight(h => h
+                    .PreTags("<em>")
+                    .PostTags("</em>")
+                    .Encoder(HighlighterEncoder.Html)
+                    .HighlightQuery(q => q
+                        .Match(m => m
+                            .Field(f => f.Text).Query(query)
+                        //.Fuzziness(Fuzziness.Auto)
+                        )
+                    )
+                    .Fields(fs => fs
+                        .Field(f => f.Text)
+                    )
+                )
+                .Size(10)
+            );
+
+            return resp.Hits.Select(h => new SearchResultItem
+            {
+                Id = h.Id,
+                Project = h.Source.Project,
+                Volume = h.Source.Volume,
+                Number = h.Source.Number,
+                Html = h.Highlight.GetValueOrDefault("text")?.FirstOrDefault() ?? h.Source.Text,
+            });
+        }
+
         public Task DeleteProject(string project)
         {
             return _client.DeleteByQueryAsync<TextIndex>(q => q
@@ -152,6 +207,35 @@ namespace TranslateServer.Services
             {
                 Volume = h.Source.Volume,
                 Number = h.Source.Number,
+                Text = h.Source.Text,
+                Score = h.Score.GetValueOrDefault(0)
+            });
+        }
+
+        public async Task<IEnumerable<MatchResult>> GetMatch(string project, string volume, string text)
+        {
+            var resp = await _client.SearchAsync<TextIndex>(s => s
+                .Index(new string[] { SOURCE_TEXT_INDEX })
+                .Query(q => q
+                    .Bool(b => b
+                        .Filter(
+                            f => f.Term(f => f.Project, project),
+                            f => f.Term(f => f.Volume, volume)
+                        )
+                        .Must(m => m.Match(m => m
+                            .Field(f => f.Text).Query(text)
+                            .Fuzziness(Fuzziness.Auto))
+                        )
+                    )
+                )
+                .Size(3)
+            );
+
+            return resp.Hits.Select(h => new MatchResult
+            {
+                Volume = h.Source.Volume,
+                Number = h.Source.Number,
+                Text = h.Source.Text,
                 Score = h.Score.GetValueOrDefault(0)
             });
         }

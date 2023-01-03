@@ -5,29 +5,28 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Jobs
 {
     public class ResourceExtractor : IJob
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly ProjectsService _projects;
-        private readonly TextsService _texts;
+        private readonly ProjectsStore _projects;
+        private readonly TextsStore _texts;
         private readonly SearchService _search;
 
         public static void Schedule(IServiceCollectionQuartzConfigurator q)
         {
-            q.UseMicrosoftDependencyInjectionJobFactory();
-            q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
             q.ScheduleJob<ResourceExtractor>(j => j
-                .StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
+                .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
                 .WithSimpleSchedule(x => x
                     .WithIntervalInMinutes(1)
                     .RepeatForever())
             );
         }
 
-        public ResourceExtractor(IServiceProvider serviceProvider, ProjectsService projects, TextsService texts, SearchService search)
+        public ResourceExtractor(IServiceProvider serviceProvider, ProjectsStore projects, TextsStore texts, SearchService search)
         {
             _serviceProvider = serviceProvider;
             _projects = projects;

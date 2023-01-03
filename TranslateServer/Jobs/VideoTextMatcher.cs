@@ -2,12 +2,12 @@
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Quartz;
-using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Jobs
 {
@@ -17,21 +17,17 @@ namespace TranslateServer.Jobs
         {
             if (Debugger.IsAttached)
             {
-                q.UseMicrosoftDependencyInjectionJobFactory();
-                q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
-                q.ScheduleJob<VideoTextMatcher>(j => j
+                /*q.ScheduleJob<VideoTextMatcher>(j => j
                     .StartNow()
                     .WithSimpleSchedule(x => x
                         .WithIntervalInSeconds(5)
                         .RepeatForever())
-                );
+                );*/
             }
             else
             {
-                q.UseMicrosoftDependencyInjectionJobFactory();
-                q.UseDefaultThreadPool(x => { x.MaxConcurrency = 1; });
                 q.ScheduleJob<VideoTextMatcher>(j => j
-                    .StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
+                    .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
                     .WithSimpleSchedule(x => x
                         .WithIntervalInMinutes(1)
                         .RepeatForever())
@@ -40,14 +36,14 @@ namespace TranslateServer.Jobs
         }
 
         private readonly ILogger<VideoTextMatcher> _logger;
-        private readonly VideoTextService _videoText;
-        private readonly TextsService _texts;
-        private readonly VideoReferenceService _videoReference;
+        private readonly VideoTextStore _videoText;
+        private readonly TextsStore _texts;
+        private readonly VideoReferenceStore _videoReference;
         private readonly SearchService _search;
-        private readonly VideoService _videos;
-        private readonly VideoTasksService _tasks;
+        private readonly VideoStore _videos;
+        private readonly VideoTasksStore _tasks;
 
-        public VideoTextMatcher(ILogger<VideoTextMatcher> logger, VideoTextService videoText, TextsService texts, VideoReferenceService videoReference, SearchService search, VideoService videos, VideoTasksService tasks)
+        public VideoTextMatcher(ILogger<VideoTextMatcher> logger, VideoTextStore videoText, TextsStore texts, VideoReferenceStore videoReference, SearchService search, VideoStore videos, VideoTasksStore tasks)
         {
             _logger = logger;
             _videoText = videoText;

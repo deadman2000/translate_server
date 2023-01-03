@@ -19,6 +19,7 @@ namespace TranslateServer.Controllers
 
         public class SearchRequest
         {
+            public string Project { get; set; }
             public string Query { get; set; }
             public bool Source { get; set; } = true;
             public bool Translated { get; set; } = true;
@@ -27,7 +28,7 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Search(SearchRequest request)
         {
-            var result = await _elastic.Search(request.Query, request.Source, request.Translated);
+            var result = await _elastic.Search(request.Project, request.Query, request.Source, request.Translated);
             return Ok(new
             {
                 request.Query,

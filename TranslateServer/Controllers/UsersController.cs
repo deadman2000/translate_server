@@ -7,7 +7,7 @@ using MongoDB.Driver.Linq;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
-using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -15,10 +15,10 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class UsersController : ApiController
     {
-        private readonly UsersService _users;
-        private readonly CommentNotifyService _commentNotify;
+        private readonly UsersStore _users;
+        private readonly CommentNotifyStore _commentNotify;
 
-        public UsersController(UsersService users, CommentNotifyService commentNotify)
+        public UsersController(UsersStore users, CommentNotifyStore commentNotify)
         {
             _users = users;
             _commentNotify = commentNotify;
@@ -64,7 +64,7 @@ namespace TranslateServer.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public async Task<ActionResult> Me([FromServices] TranslateService translate)
+        public async Task<ActionResult> Me([FromServices] TranslateStore translate)
         {
             var user = await _users.Get(u => u.Login == UserLogin);
             if (user == null)
@@ -111,7 +111,7 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpGet]
-        public async Task<ActionResult> GetList([FromServices] TranslateService translate)
+        public async Task<ActionResult> GetList([FromServices] TranslateStore translate)
         {
             var users = (await _users.All()).ToList();
             foreach (var user in users)
@@ -122,7 +122,7 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpGet("{id}/chart")]
-        public async Task<ActionResult> GetChart(string id, [FromServices] TranslateService translate)
+        public async Task<ActionResult> GetChart(string id, [FromServices] TranslateStore translate)
         {
             var user = await _users.GetById(id);
             if (user == null) return NotFound();

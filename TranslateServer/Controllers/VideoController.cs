@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -12,10 +13,10 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class VideoController : ApiController
     {
-        private readonly VideoService _video;
-        private readonly VideoTasksService _videoTasks;
+        private readonly VideoStore _video;
+        private readonly VideoTasksStore _videoTasks;
 
-        public VideoController(VideoService video, VideoTasksService videoTasks)
+        public VideoController(VideoStore video, VideoTasksStore videoTasks)
         {
             _video = video;
             _videoTasks = videoTasks;
@@ -29,7 +30,7 @@ namespace TranslateServer.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> Post([FromBody] Video video, [FromServices] ProjectsService projects)
+        public async Task<ActionResult> Post([FromBody] Video video, [FromServices] ProjectsStore projects)
         {
             var pr = await projects.Get(p => p.Code == video.Project);
             if (pr == null)
@@ -50,7 +51,7 @@ namespace TranslateServer.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(string id, [FromServices] VideoTextService videoText, [FromServices] VideoReferenceService references)
+        public async Task<ActionResult> Delete(string id, [FromServices] VideoTextStore videoText, [FromServices] VideoReferenceStore references)
         {
             await Task.WhenAll(new Task[]
             {

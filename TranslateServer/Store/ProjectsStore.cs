@@ -4,12 +4,13 @@ using System.Threading.Tasks;
 using TranslateServer.Helpers;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class ProjectsService : MongoBaseService<Project>
+    public class ProjectsStore : MongoBaseService<Project>
     {
-        public ProjectsService(MongoService mongo) : base(mongo, "Projects")
+        public ProjectsStore(MongoService mongo) : base(mongo, "Projects")
         {
             var indexKeysDefinition = Builders<Project>.IndexKeys.Ascending(project => project.Code);
             _collection.Indexes.CreateOneAsync(new CreateIndexModel<Project>(indexKeysDefinition));
@@ -25,7 +26,7 @@ namespace TranslateServer.Services
             return Update(p => p.Code == shortName);
         }
 
-        public async Task RecalcLetters(string shortName, VolumesService volumes)
+        public async Task RecalcLetters(string shortName, VolumesStore volumes)
         {
             var res = await volumes.Collection.Aggregate()
                 .Match(v => v.Project == shortName)

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Requests;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -16,19 +17,17 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class TranslateController : ApiController
     {
-        private readonly TranslateService _translate;
-        private readonly TextsService _texts;
-        private readonly VolumesService _volumes;
-        private readonly ProjectsService _projects;
+        private readonly TranslateService _translateService;
+        private readonly TranslateStore _translate;
+        private readonly TextsStore _texts;
         private readonly SearchService _search;
-        private readonly CommentsService _comments;
+        private readonly CommentsStore _comments;
 
-        public TranslateController(TranslateService translate, TextsService texts, VolumesService volumes, ProjectsService projects, SearchService search, CommentsService comments)
+        public TranslateController(TranslateService translateService, TranslateStore translate, TextsStore texts, SearchService search, CommentsStore comments)
         {
+            _translateService = translateService;
             _translate = translate;
             _texts = texts;
-            _volumes = volumes;
-            _projects = projects;
             _search = search;
             _comments = comments;
         }
@@ -49,65 +48,8 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Submit([FromBody] SubmitRequest request)
         {
-            var txt = await _texts.Get(t => t.Project == request.Project && t.Volume == request.Volume && t.Number == request.Number);
-            if (txt == null)
-                return NotFound();
-
-            TextTranslate translate = new()
-            {
-                Project = request.Project,
-                Volume = request.Volume,
-                Number = request.Number,
-                Text = request.Text,
-                Author = UserLogin,
-                Editor = UserLogin,
-                DateCreate = DateTime.UtcNow,
-                Letters = txt.Letters,
-            };
-
-            if (request.TranslateId != null)
-            {
-                var prev = await _translate.GetById(request.TranslateId);
-                if (prev != null)
-                {
-                    translate.Author = prev.Author;
-                    translate.FirstId = prev.FirstId ?? prev.Id;
-                }
-            }
-
-            await _translate.Insert(translate);
-
-            if (request.TranslateId != null)
-            {
-                await _translate.Update(t => t.Id == request.TranslateId
-                                          && t.NextId == null
-                                          && !t.Deleted)
-                    .Set(t => t.NextId, translate.Id)
-                    .Execute();
-            }
-
-            bool needUpdate = false;
-            if (!txt.HasTranslate)
-            {
-                await _texts.Update(t => t.Id == txt.Id).Set(t => t.HasTranslate, true).Execute();
-                needUpdate = true;
-            }
-
-            if (txt.TranslateApproved)
-            {
-                await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, false).Execute();
-                needUpdate = true;
-            }
-
-            if (needUpdate)
-                await UpdateVolumeProgress(request.Project, request.Volume);
-
-            await _volumes.Update(v => v.Project == request.Project && v.Code == request.Volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
-            await _projects.Update(p => p.Code == request.Project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();
-
-            if (request.TranslateId != null)
-                await _search.DeleteTranslate(request.TranslateId);
-            await _search.IndexTranslate(translate);
+            var translate = await _translateService.Submit(request.Project, request.Volume, request.Number, request.Text, UserLogin, request.TranslateId);
+            if (translate == null) return NotFound();
 
             var comments = await _comments.GetComments(translate);
 
@@ -165,66 +107,13 @@ namespace TranslateServer.Controllers
                     .Set(t => t.TranslateApproved, false)
                     .Execute();
 
-                await UpdateVolumeProgress(tr.Project, tr.Volume);
+                await _translateService.UpdateVolumeProgress(tr.Project, tr.Volume);
+                await _translateService.UpdateProjectProgress(tr.Project);
             }
 
             await _search.DeleteTranslate(id);
 
             return Ok(newTr != null ? new TranslateInfo(newTr) : null);
-        }
-
-        private async Task UpdateVolumeProgress(string project, string volume)
-        {
-            var translated = await _texts.Collection.Aggregate()
-                .Match(t => t.Project == project && t.Volume == volume && t.HasTranslate)
-                .Group(t => true,
-                g => new
-                {
-                    Letters = g.Sum(t => t.Letters),
-                    Count = g.Count()
-                })
-                .FirstOrDefaultAsync();
-
-            var approved = await _texts.Collection.Aggregate()
-                .Match(t => t.Project == project && t.Volume == volume && t.TranslateApproved)
-                .Group(t => true,
-                g => new
-                {
-                    Letters = g.Sum(t => t.Letters),
-                    Count = g.Count()
-                })
-                .FirstOrDefaultAsync();
-
-            await _volumes.Update(v => v.Project == project && v.Code == volume)
-                .Set(v => v.TranslatedLetters, translated != null ? translated.Letters : 0)
-                .Set(v => v.TranslatedTexts, translated != null ? translated.Count : 0)
-                .Set(v => v.ApprovedLetters, approved != null ? approved.Letters : 0)
-                .Set(v => v.ApprovedTexts, approved != null ? approved.Count : 0)
-                .Execute();
-
-            await UpdateProjectProgress(project);
-        }
-
-        private async Task UpdateProjectProgress(string project)
-        {
-            var res = await _volumes.Collection.Aggregate()
-                .Match(t => t.Project == project)
-                .Group(t => true,
-                g => new
-                {
-                    Letters = g.Sum(v => v.TranslatedLetters),
-                    Count = g.Sum(v => v.TranslatedTexts),
-                    ALetters = g.Sum(v => v.ApprovedLetters),
-                    ACount = g.Sum(v => v.ApprovedTexts),
-                })
-                .FirstOrDefaultAsync();
-
-            await _projects.Update(p => p.Code == project)
-                .Set(p => p.TranslatedLetters, res.Letters)
-                .Set(p => p.TranslatedTexts, res.Count)
-                .Set(p => p.ApprovedLetters, res.ALetters)
-                .Set(p => p.ApprovedTexts, res.ACount)
-                .Execute();
         }
 
         [HttpGet("{id}/history")]
@@ -266,7 +155,8 @@ namespace TranslateServer.Controllers
                 .Set(t => t.TranslateApproved, request.Approved)
                 .Execute();
 
-            await UpdateVolumeProgress(tr.Project, tr.Volume);
+            await _translateService.UpdateVolumeProgress(tr.Project, tr.Volume);
+            await _translateService.UpdateProjectProgress(tr.Project);
 
             return Ok();
         }

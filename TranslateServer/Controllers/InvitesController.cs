@@ -4,7 +4,7 @@ using MongoDB.Driver.Linq;
 using System;
 using System.Threading.Tasks;
 using TranslateServer.Model;
-using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -12,10 +12,10 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class InvitesController : ApiController
     {
-        private readonly InvitesService _invites;
-        private readonly UsersService _users;
+        private readonly InvitesStore _invites;
+        private readonly UsersStore _users;
 
-        public InvitesController(InvitesService invites, UsersService users)
+        public InvitesController(InvitesStore invites, UsersStore users)
         {
             _invites = invites;
             _users = users;

@@ -1,12 +1,13 @@
 ﻿using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class VideoReferenceService : MongoBaseService<VideoReference>
+    public class VideoReferenceStore : MongoBaseService<VideoReference>
     {
-        public VideoReferenceService(MongoService mongo) : base(mongo, "VideoReferences")
+        public VideoReferenceStore(MongoService mongo) : base(mongo, "VideoReferences")
         {
         }
 

@@ -6,7 +6,7 @@ using MongoDB.Driver;
 using System.Linq;
 using MongoDB.Driver.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -15,9 +15,9 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class PatchesController : ApiController
     {
-        private readonly PatchesService _patches;
+        private readonly PatchesStore _patches;
 
-        public PatchesController(PatchesService patches)
+        public PatchesController(PatchesStore patches)
         {
             _patches = patches;
         }

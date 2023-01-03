@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Requests;
 using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -14,12 +15,12 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class TextsController : ApiController
     {
-        private readonly TextsService _texts;
-        private readonly TranslateService _translate;
-        private readonly VideoReferenceService _references;
-        private readonly CommentsService _comments;
+        private readonly TextsStore _texts;
+        private readonly TranslateStore _translate;
+        private readonly VideoReferenceStore _references;
+        private readonly CommentsStore _comments;
 
-        public TextsController(TextsService texts, TranslateService translate, VideoReferenceService references, CommentsService comments)
+        public TextsController(TextsStore texts, TranslateStore translate, VideoReferenceStore references, CommentsStore comments)
         {
             _texts = texts;
             _translate = translate;

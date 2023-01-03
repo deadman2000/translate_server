@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
-using TranslateServer.Services;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
@@ -16,12 +16,12 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class CommentsController : ApiController
     {
-        private readonly CommentsService _comments;
-        private readonly TranslateService _translate;
-        private readonly UsersService _users;
-        private readonly CommentNotifyService _commentNotify;
+        private readonly CommentsStore _comments;
+        private readonly TranslateStore _translate;
+        private readonly UsersStore _users;
+        private readonly CommentNotifyStore _commentNotify;
 
-        public CommentsController(CommentsService service, TranslateService translate, UsersService users, CommentNotifyService commentNotify)
+        public CommentsController(CommentsStore service, TranslateStore translate, UsersStore users, CommentNotifyStore commentNotify)
         {
             _comments = service;
             _translate = translate;

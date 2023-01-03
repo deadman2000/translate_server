@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class VideoTasksService : MongoBaseService<VideoTask>
+    public class VideoTasksStore : MongoBaseService<VideoTask>
     {
         private static readonly TimeSpan TimeOut = TimeSpan.FromMinutes(15);
 
@@ -15,7 +16,7 @@ namespace TranslateServer.Services
 
         private static readonly int FrameSkip = 10;
 
-        public VideoTasksService(MongoService mongo) : base(mongo, "VideoTasks")
+        public VideoTasksStore(MongoService mongo) : base(mongo, "VideoTasks")
         {
         }
 

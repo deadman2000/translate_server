@@ -6,14 +6,15 @@ using System.IO;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class PatchesService : MongoBaseService<Patch>
+    public class PatchesStore : MongoBaseService<Patch>
     {
         private readonly GridFSBucket gridFS;
 
-        public PatchesService(MongoService mongo) : base(mongo, "Patches")
+        public PatchesStore(MongoService mongo) : base(mongo, "Patches")
         {
             gridFS = new GridFSBucket(Collection.Database);
         }

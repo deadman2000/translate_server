@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Mongo;
+using TranslateServer.Services;
 
-namespace TranslateServer.Services
+namespace TranslateServer.Store
 {
-    public class CommentsService : MongoBaseService<Comment>
+    public class CommentsStore : MongoBaseService<Comment>
     {
-        public CommentsService(MongoService mongo) : base(mongo, "Comments")
+        public CommentsStore(MongoService mongo) : base(mongo, "Comments")
         {
         }
 
