@@ -14,16 +14,32 @@ namespace TranslateServer.Services
         private readonly VolumesStore _volumes;
         private readonly ProjectsStore _projects;
         private readonly SearchService _search;
-        private readonly CommentsStore _comments;
 
-        public TranslateService(TranslateStore translate, TextsStore texts, VolumesStore volumes, ProjectsStore projects, SearchService search, CommentsStore comments)
+        public TranslateService(TranslateStore translate, TextsStore texts, VolumesStore volumes, ProjectsStore projects, SearchService search)
         {
             _translate = translate;
             _texts = texts;
             _volumes = volumes;
             _projects = projects;
             _search = search;
-            _comments = comments;
+        }
+
+        public async Task UpdateVolumeTotal(string project, string volume)
+        {
+            var total = await _texts.Collection.Aggregate()
+                .Match(t => t.Project == project && t.Volume == volume)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(t => t.Letters),
+                    Count = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            await _volumes.Update(v => v.Project == project && v.Code == volume)
+                .Set(v => v.Letters, total.Letters)
+                .Set(v => v.Texts, total.Count)
+                .Execute();
         }
 
         public async Task UpdateVolumeProgress(string project, string volume)
@@ -124,13 +140,22 @@ namespace TranslateServer.Services
                 needUpdate = true;
             }
 
-            if (txt.TranslateApproved)
+            if (txt.Text == text && !txt.TranslateApproved)
+            {
+                await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, true).Execute();
+                needUpdate = true;
+            }
+            else if (txt.TranslateApproved)
             {
                 await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, false).Execute();
                 needUpdate = true;
             }
+
             if (needUpdate)
+            {
                 await UpdateVolumeProgress(project, volume);
+                await UpdateProjectProgress(project);
+            }
 
             await _volumes.Update(v => v.Project == project && v.Code == volume).Set(v => v.LastSubmit, DateTime.UtcNow).Execute();
             await _projects.Update(p => p.Code == project).Set(p => p.LastSubmit, DateTime.UtcNow).Execute();

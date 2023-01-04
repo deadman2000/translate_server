@@ -2,6 +2,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using SCI_Lib.Resources;
+using SCI_Lib.Resources.Scripts;
+using SCI_Lib.Resources.Scripts.Sections;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -21,11 +24,15 @@ namespace TranslateServer.Controllers
     {
         private readonly ProjectsStore _project;
         private readonly ServerConfig _config;
+        private readonly TextsStore _texts;
+        private readonly VolumesStore _volumes;
 
-        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsStore project)
+        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsStore project, TextsStore texts, VolumesStore volumes)
         {
             _project = project;
             _config = opConfig.Value;
+            _texts = texts;
+            _volumes = volumes;
         }
 
         [HttpGet]
@@ -110,9 +117,9 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpPost("{shortName}/reindex")]
-        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TextsStore texts, [FromServices] TranslateStore translate, [FromServices] VolumesStore volumes)
+        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TranslateStore translate, [FromServices] TranslateService translateService)
         {
-            var textsList = await texts.Query(t => t.Project == shortName);
+            var textsList = await _texts.Query(t => t.Project == shortName);
             var tr = await translate.Query(t => t.Project == shortName && t.NextId == null && !t.Deleted);
 
             bool changed = false;
@@ -123,7 +130,7 @@ namespace TranslateServer.Controllers
                 if (txt.Letters != letters)
                 {
                     changed = true;
-                    await texts.Update(t => t.Id == txt.Id)
+                    await _texts.Update(t => t.Id == txt.Id)
                         .Set(t => t.Letters, txt.Letters)
                         .Execute();
                 }
@@ -131,9 +138,17 @@ namespace TranslateServer.Controllers
 
             if (changed)
             {
-                await volumes.RecalcLetters(shortName, texts);
-                await _project.RecalcLetters(shortName, volumes);
+                await _volumes.RecalcLetters(shortName, _texts);
+                await _project.RecalcLetters(shortName, _volumes);
             }
+
+            var volumes = await _volumes.Query(v => v.Project == shortName);
+            foreach (var vol in volumes)
+            {
+                await translateService.UpdateVolumeTotal(shortName, vol.Code);
+                await translateService.UpdateVolumeProgress(shortName, vol.Code);
+            }
+            await translateService.UpdateProjectProgress(shortName);
 
             await elastic.DeleteProject(shortName);
             await elastic.InsertTexts(textsList);
@@ -145,11 +160,74 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpDelete("{shortName}")]
-        public async Task<ActionResult> Delete(string shortName, [FromServices] VolumesStore volumes, [FromServices] TextsStore texts)
+        public async Task<ActionResult> Delete(string shortName, [FromServices] SCIService sci, [FromServices] TranslateStore translates, [FromServices] PatchesStore patches)
         {
-            await volumes.Delete(v => v.Project == shortName);
-            await texts.Delete(v => v.Project == shortName);
+            await _volumes.Delete(v => v.Project == shortName);
+            await _texts.Delete(v => v.Project == shortName);
             await _project.DeleteOne(p => p.Code == shortName);
+            await translates.Delete(t => t.Project == shortName);
+            sci.DeletePackage(shortName);
+            foreach (var p in await patches.Query(p => p.Project == shortName))
+                await patches.FullDelete(p.Id);
+
+            return Ok();
+        }
+
+        [AuthAdmin]
+        [HttpPost("{shortName}/rebuild")]
+        public async Task<ActionResult> Rebuild(string shortName, [FromServices] SCIService sci, [FromServices] TranslateStore translates, [FromServices] TranslateService translateService)
+        {
+            var project = await _project.GetProject(shortName);
+            var package = sci.Load(shortName);
+            var scripts = package.GetResources<ResScript>();
+
+            Console.WriteLine("Recreate script texts");
+            foreach (var res in scripts)
+            {
+                Console.WriteLine(res.FileName);
+                var scr = res.GetScript() as Script;
+                var strings = scr.Sections.OfType<StringSection>().SelectMany(s => s.Strings).Select(s => s.Value).ToArray();
+                if (strings == null || strings.Length == 0) continue;
+                if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
+
+                var volume = await _volumes.Get(v => v.Project == shortName && v.Code == Volume.FileNameToCode(res.FileName));
+                if (volume == null)
+                {
+                    volume = new Volume(project, res.FileName);
+                    await _volumes.Insert(volume);
+                }
+
+                await _texts.Delete(t => t.Project == shortName && t.Volume == volume.Code);
+                for (int i = 0; i < strings.Length; i++)
+                {
+                    var val = strings[i];
+                    if (!string.IsNullOrWhiteSpace(val))
+                        await _texts.Insert(new TextResource(project, volume, i, val));
+                }
+            }
+
+            Console.WriteLine("Remap translate num");
+            foreach (var res in scripts)
+            {
+                Console.WriteLine(res.FileName);
+                var volume = Volume.FileNameToCode(res.FileName);
+                var scr = res.GetScript() as Script;
+                var strings = scr.Sections.OfType<StringSection>().SelectMany(s => s.Strings).Where(s => !s.IsClassName).ToArray();
+                var allStrings = scr.Sections.OfType<StringSection>().SelectMany(s => s.Strings).ToArray();
+                for (int i = strings.Length - 1; i >= 0; i--)
+                {
+                    var newNum = Array.IndexOf(allStrings, strings[i]);
+
+                    await translates
+                        .Update(t => t.Project == shortName && t.Volume == volume && t.Number == i)
+                        .Set(t => t.Number, newNum)
+                        .Execute();
+                }
+
+                await translateService.UpdateVolumeProgress(shortName, volume);
+            }
+
+            await translateService.UpdateProjectProgress(shortName);
 
             return Ok();
         }

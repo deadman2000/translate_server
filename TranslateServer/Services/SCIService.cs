@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using SCI_Lib;
+using System.IO;
 
 namespace TranslateServer.Services
 {
@@ -17,6 +18,13 @@ namespace TranslateServer.Services
         public SCIPackage Load(string project)
         {
             return SCIPackage.Load(GetProjectPath(project));
+        }
+
+        public void DeletePackage(string project)
+        {
+            var path = GetProjectPath(project);
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
         }
     }
 }

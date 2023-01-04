@@ -126,8 +126,10 @@ namespace TranslateServer.Controllers
 
             var dict = all.ToDictionary(t => t.NextId, t => t);
 
-            List<TranslateInfo> result = new();
-            result.Add(new TranslateInfo(translate));
+            List<TranslateInfo> result = new()
+            {
+                new TranslateInfo(translate)
+            };
             while (true)
             {
                 if (!dict.TryGetValue(translate.Id, out var prev)) break;

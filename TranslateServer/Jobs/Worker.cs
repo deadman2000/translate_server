@@ -15,74 +15,74 @@ namespace TranslateServer.Jobs
 {
     public class Worker
     {
-        private readonly TextsStore texts;
-        private readonly VolumesStore volumes;
-        private readonly SCIService sci;
-        private readonly ProjectsStore projects;
-        private readonly Project project;
-        private SCI_Lib.SCIPackage package;
+        private readonly TextsStore _texts;
+        private readonly VolumesStore _volumes;
+        private readonly SCIService _sci;
+        private readonly ProjectsStore _projects;
+        private readonly Project _project;
+        private SCI_Lib.SCIPackage _package;
 
         public Worker(IServiceProvider serviceProvider, Project project)
         {
             using var scope = serviceProvider.CreateScope();
-            texts = scope.ServiceProvider.GetService<TextsStore>();
-            volumes = scope.ServiceProvider.GetService<VolumesStore>();
-            sci = scope.ServiceProvider.GetService<SCIService>();
-            projects = scope.ServiceProvider.GetService<ProjectsStore>();
-            this.project = project;
+            _texts = scope.ServiceProvider.GetService<TextsStore>();
+            _volumes = scope.ServiceProvider.GetService<VolumesStore>();
+            _sci = scope.ServiceProvider.GetService<SCIService>();
+            _projects = scope.ServiceProvider.GetService<ProjectsStore>();
+            _project = project;
         }
 
         public async Task Extract()
         {
-            Console.WriteLine($"Extract resources {project.Code}");
+            Console.WriteLine($"Extract resources {_project.Code}");
 
-            package = sci.Load(project.Code);
+            _package = _sci.Load(_project.Code);
 
             await Cleanup();
 
-            foreach (var txt in package.GetResources<ResText>())
+            foreach (var txt in _package.GetResources<ResText>())
             {
                 var strings = txt.GetStrings();
                 if (strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
 
-                var volume = new Volume(project, txt.FileName);
-                await volumes.Insert(volume);
+                var volume = new Volume(_project, txt.FileName);
+                await _volumes.Insert(volume);
 
                 for (int i = 0; i < strings.Length; i++)
                 {
                     var val = strings[i];
                     if (!string.IsNullOrWhiteSpace(val))
-                        await texts.Insert(new TextResource(project, volume, i, val));
+                        await _texts.Insert(new TextResource(_project, volume, i, val));
                 }
             }
 
-            foreach (var scr in package.GetResources<ResScript>())
+            foreach (var scr in _package.GetResources<ResScript>())
             {
                 var strings = scr.GetStrings();
                 if (strings == null || strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
 
-                var volume = new Volume(project, scr.FileName);
-                await volumes.Insert(volume);
+                var volume = new Volume(_project, scr.FileName);
+                await _volumes.Insert(volume);
 
                 for (int i = 0; i < strings.Length; i++)
                 {
                     var val = strings[i];
                     if (!string.IsNullOrWhiteSpace(val))
-                        await texts.Insert(new TextResource(project, volume, i, val));
+                        await _texts.Insert(new TextResource(_project, volume, i, val));
                 }
             }
 
 
-            foreach (var msg in package.GetResources<ResMessage>())
+            foreach (var msg in _package.GetResources<ResMessage>())
             {
                 var records = msg.GetMessages();
                 if (records.Count == 0) continue;
                 if (!records.Any(r => !string.IsNullOrWhiteSpace(r.Text))) continue;
 
-                var volume = new Volume(project, msg.FileName);
-                await volumes.Insert(volume);
+                var volume = new Volume(_project, msg.FileName);
+                await _volumes.Insert(volume);
 
                 /*Dictionary<ushort, IEnumerable<Object1_1>> nounObjects = null;
                 if (package.GetResource<ResVocab>(997) != null)
@@ -118,7 +118,7 @@ namespace TranslateServer.Jobs
                         }
                     }*/
 
-                    await texts.Insert(new TextResource(project, volume, i, r.Text)
+                    await _texts.Insert(new TextResource(_project, volume, i, r.Text)
                     {
                         Talker = r.Talker,
                         Verb = r.Verb,
@@ -127,14 +127,14 @@ namespace TranslateServer.Jobs
                 }
             }
 
-            await volumes.RecalcLetters(project.Code, texts);
-            await projects.RecalcLetters(project.Code, volumes);
+            await _volumes.RecalcLetters(_project.Code, _texts);
+            await _projects.RecalcLetters(_project.Code, _volumes);
         }
 
         private async Task Cleanup()
         {
-            await texts.Delete(r => r.Project == project.Code);
-            await volumes.Delete(v => v.Project == project.Code);
+            await _texts.Delete(r => r.Project == _project.Code);
+            await _volumes.Delete(v => v.Project == _project.Code);
         }
 
         private string ExtractImage(Object1_1 obj)
@@ -153,7 +153,7 @@ namespace TranslateServer.Jobs
                 if (loop >= view.Loops.Count) loop = (ushort)(view.Loops.Count - 1);
                 if (cel >= view.Loops[loop].Cells.Count) cel = (ushort)(view.Loops[loop].Cells.Count - 1);
 
-                return $"resources/{project.Code}/views/{viewNum}.{loop}.{cel}.png";
+                return $"resources/{_project.Code}/views/{viewNum}.{loop}.{cel}.png";
             }
 
             return null;
@@ -163,7 +163,7 @@ namespace TranslateServer.Jobs
 
         private SCIView ExtractView(ResView resView)
         {
-            var dir = $"resources/{project.Code}/views";
+            var dir = $"resources/{_project.Code}/views";
             if (_extractedViews.Count == 0)
                 Directory.CreateDirectory(dir);
 

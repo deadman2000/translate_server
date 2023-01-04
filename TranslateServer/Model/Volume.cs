@@ -12,8 +12,10 @@ namespace TranslateServer.Model
         {
             Project = project.Code;
             Name = name;
-            Code = name.ToLower().Replace('.', '_');
+            Code = FileNameToCode(name);
         }
+
+        public static string FileNameToCode(string fileName) => fileName.ToLower().Replace('.', '_');
 
         public string Project { get; set; }
 

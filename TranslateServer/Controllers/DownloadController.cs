@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -58,10 +59,14 @@ namespace TranslateServer.Controllers
                         var resourceName = g.Key.Replace('_', '.');
                         var res = package.GetResource(resourceName);
                         var strings = res.GetStrings();
-                        foreach (var t in g)
-                            strings[t.Number] = t.Text;
+                        var trStrings = (string[])strings.Clone();
 
-                        res.SetStrings(strings);
+                        foreach (var t in g)
+                            trStrings[t.Number] = t.Text;
+
+                        if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
+                        
+                        res.SetStrings(trStrings);
                         var bytes = res.GetPatch();
                         var entry = archive.CreateEntry(resourceName);
                         using var s = entry.Open();

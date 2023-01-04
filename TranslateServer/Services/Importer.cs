@@ -120,7 +120,6 @@ namespace TranslateServer.Services
             if (_translated.Contains(key)) return;
             _translated.Add(key);
 
-
             await _translate.Insert(new TextTranslate()
             {
                 Project = _project,
