@@ -72,6 +72,24 @@ namespace TranslateServer.Services
                 .Execute();
         }
 
+        public async Task UpdateProjectTotal(string project)
+        {
+            var res = await _volumes.Collection.Aggregate()
+                .Match(t => t.Project == project)
+                .Group(t => true,
+                g => new
+                {
+                    Letters = g.Sum(t => t.Letters),
+                    Count = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            await _projects.Update(p => p.Code == project)
+                .Set(p => p.Letters, res.Letters)
+                .Set(p => p.Texts, res.Count)
+                .Execute();
+        }
+
         public async Task UpdateProjectProgress(string project)
         {
             var res = await _volumes.Collection.Aggregate()

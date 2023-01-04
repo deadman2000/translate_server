@@ -15,6 +15,7 @@ using TranslateServer.Helpers;
 using TranslateServer.Model;
 using TranslateServer.Services;
 using TranslateServer.Store;
+using TranslateServer.Requests;
 
 namespace TranslateServer.Controllers
 {
@@ -153,6 +154,7 @@ namespace TranslateServer.Controllers
                 await translateService.UpdateVolumeTotal(shortName, vol.Code);
                 await translateService.UpdateVolumeProgress(shortName, vol.Code);
             }
+            await translateService.UpdateProjectTotal(shortName);
             await translateService.UpdateProjectProgress(shortName);
 
             await elastic.DeleteProject(shortName);
@@ -287,7 +289,7 @@ namespace TranslateServer.Controllers
                 if (text != null) list.Add(new
                 {
                     text,
-                    tr
+                    tr = new TranslateInfo(tr)
                 });
             }
 
