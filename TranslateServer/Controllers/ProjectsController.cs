@@ -6,6 +6,7 @@ using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Sections;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -26,13 +27,15 @@ namespace TranslateServer.Controllers
         private readonly ServerConfig _config;
         private readonly TextsStore _texts;
         private readonly VolumesStore _volumes;
+        private readonly TranslateStore _translates;
 
-        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsStore project, TextsStore texts, VolumesStore volumes)
+        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsStore project, TextsStore texts, VolumesStore volumes, TranslateStore translates)
         {
             _project = project;
             _config = opConfig.Value;
             _texts = texts;
             _volumes = volumes;
+            _translates = translates;
         }
 
         [HttpGet]
@@ -117,10 +120,10 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpPost("{shortName}/reindex")]
-        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TranslateStore translate, [FromServices] TranslateService translateService)
+        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TranslateService translateService)
         {
             var textsList = await _texts.Query(t => t.Project == shortName);
-            var tr = await translate.Query(t => t.Project == shortName && t.NextId == null && !t.Deleted);
+            var tr = await _translates.Query(t => t.Project == shortName && t.NextId == null && !t.Deleted);
 
             bool changed = false;
             foreach (var txt in textsList)
@@ -160,12 +163,12 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpDelete("{shortName}")]
-        public async Task<ActionResult> Delete(string shortName, [FromServices] SCIService sci, [FromServices] TranslateStore translates, [FromServices] PatchesStore patches)
+        public async Task<ActionResult> Delete(string shortName, [FromServices] SCIService sci, [FromServices] PatchesStore patches)
         {
             await _volumes.Delete(v => v.Project == shortName);
             await _texts.Delete(v => v.Project == shortName);
             await _project.DeleteOne(p => p.Code == shortName);
-            await translates.Delete(t => t.Project == shortName);
+            await _translates.Delete(t => t.Project == shortName);
             sci.DeletePackage(shortName);
             foreach (var p in await patches.Query(p => p.Project == shortName))
                 await patches.FullDelete(p.Id);
@@ -175,7 +178,7 @@ namespace TranslateServer.Controllers
 
         [AuthAdmin]
         [HttpPost("{shortName}/rebuild")]
-        public async Task<ActionResult> Rebuild(string shortName, [FromServices] SCIService sci, [FromServices] TranslateStore translates, [FromServices] TranslateService translateService)
+        public async Task<ActionResult> Rebuild(string shortName, [FromServices] SCIService sci, [FromServices] TranslateService translateService)
         {
             var project = await _project.GetProject(shortName);
             var package = sci.Load(shortName);
@@ -218,7 +221,7 @@ namespace TranslateServer.Controllers
                 {
                     var newNum = Array.IndexOf(allStrings, strings[i]);
 
-                    await translates
+                    await _translates
                         .Update(t => t.Project == shortName && t.Volume == volume && t.Number == i)
                         .Set(t => t.Number, newNum)
                         .Execute();
@@ -230,6 +233,31 @@ namespace TranslateServer.Controllers
             await translateService.UpdateProjectProgress(shortName);
 
             return Ok();
+        }
+
+
+        [HttpGet("{project}/byuser/{user}")]
+        public async Task<ActionResult> ByUser(string project, string user)
+        {
+            // Translates
+            var trList = await _translates.Query()
+                .Where(t => t.Project == project && t.Editor == user && t.NextId == null && !t.Deleted)
+                .SortAsc(t => t.Number)
+                .Execute();
+
+            // Texts
+            List<dynamic> list = new();
+            foreach (var tr in trList)
+            {
+                var text = await _texts.Get(t => t.Project == project && t.Volume == tr.Volume && t.Number == tr.Number);
+                if (text != null) list.Add(new
+                {
+                    text,
+                    tr
+                });
+            }
+
+            return Ok(list);
         }
     }
 }
