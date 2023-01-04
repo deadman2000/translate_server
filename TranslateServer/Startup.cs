@@ -84,7 +84,7 @@ namespace TranslateServer
                     q.UseInMemoryStore();
 
                     ResourceExtractor.Schedule(q);
-                    VideoTextMatcher.Schedule(q);
+                    //VideoTextMatcher.Schedule(q); // TODO Вернуть после оптимизации. Считать только по необходимости
                 });
 
                 services.AddQuartzHostedService();
