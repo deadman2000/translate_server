@@ -37,7 +37,7 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
-            var patch = await _patches.Get(p => p.Project == project && p.FileName == file.FileName.ToLower());
+            var patch = await _patches.Get(p => p.Project == project && p.FileName == file.FileName.ToLower() && !p.Deleted);
             if (patch != null)
                 await _patches.Update(patch, file, UserLogin);
             else
