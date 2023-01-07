@@ -2,9 +2,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using SCI_Lib.Resources.Scripts.Sections;
-using SCI_Lib.Resources.Scripts;
-using SCI_Lib.Resources;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,9 +10,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Helpers;
 using TranslateServer.Model;
+using TranslateServer.Requests;
 using TranslateServer.Services;
 using TranslateServer.Store;
-using TranslateServer.Requests;
 
 namespace TranslateServer.Controllers
 {
@@ -196,78 +193,6 @@ namespace TranslateServer.Controllers
             sci.DeletePackage(shortName);
             foreach (var p in await patches.Query(p => p.Project == shortName))
                 await patches.FullDelete(p.Id);
-
-            return Ok();
-        }
-
-        [AuthAdmin]
-        [HttpPost("{shortName}/rebuild")]
-        public async Task<ActionResult> Rebuild(string shortName, [FromServices] SCIService sci, [FromServices] TranslateService translateService)
-        {
-            var project = await _project.GetProject(shortName);
-            var package = sci.Load(shortName);
-            var scripts = package.GetResources<ResScript>();
-
-            Console.WriteLine("Recreate script texts");
-            foreach (var res in scripts)
-            {
-                var volCode = Volume.FileNameToCode(res.FileName);
-
-                Console.WriteLine(res.FileName);
-                var scr = res.GetScript() as Script;
-                var oldStrings = scr.Sections.OfType<StringSection>().SelectMany(s => s.Strings).Where(s => !s.IsClassName).ToArray();
-                var newStrings = scr.Sections.OfType<StringSection>().SelectMany(s => s.Strings).ToArray();
-                if (newStrings == null || newStrings.Length == 0) continue;
-                if (!newStrings.Any(s => !string.IsNullOrWhiteSpace(s.Value))) continue;
-
-                var oldToNew = oldStrings.ToDictionary(
-                    s => Array.IndexOf(oldStrings, s),
-                    s => Array.IndexOf(newStrings, s)
-                );
-                var newToOld = newStrings.ToDictionary(
-                    s => Array.IndexOf(newStrings, s),
-                    s => Array.IndexOf(oldStrings, s)
-                );
-
-                var volume = await _volumes.Get(v => v.Project == shortName && v.Code == volCode);
-                if (volume == null)
-                {
-                    volume = new Volume(project, res.FileName);
-                    await _volumes.Insert(volume);
-                }
-
-                var texts = await _texts.Query(t => t.Project == shortName && t.Volume == volume.Code);
-                await _texts.Delete(t => t.Project == shortName && t.Volume == volume.Code);
-                for (int i = 0; i < newStrings.Length; i++)
-                {
-                    var oldNum = newToOld[i];
-                    var old = texts.FirstOrDefault(t => t.Number == oldNum);
-
-                    var val = newStrings[i];
-                    if (!string.IsNullOrWhiteSpace(val.Value))
-                        await _texts.Insert(new TextResource(project, volume, i, val.Value)
-                        {
-                            TranslateApproved = old != null ? old.TranslateApproved : false
-                        });
-                }
-
-                var translates = await _translates.Query(t => t.Project == shortName && t.Volume == volCode);
-
-                foreach (var tr in translates)
-                {
-                    var num = oldToNew[tr.Number];
-                    if (num != tr.Number)
-                    {
-                        await _translates.Update(t => t.Id == tr.Id)
-                            .Set(t => t.Number, num)
-                            .Execute();
-                    }
-                }
-
-                await translateService.UpdateVolumeProgress(shortName, volCode);
-            }
-
-            await translateService.UpdateProjectProgress(shortName);
 
             return Ok();
         }
