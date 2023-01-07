@@ -118,6 +118,8 @@ namespace TranslateServer.Services
             if (txt == null)
                 return null;
 
+            text = text.TrimEnd('\r', '\n');
+
             TextTranslate translate = new()
             {
                 Project = project,
