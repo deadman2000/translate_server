@@ -9,7 +9,7 @@ using TranslateServer.Store;
 
 namespace TranslateServer.Jobs
 {
-    public class ResourceExtractor : IJob
+    class ResourceExtractor : IJob
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ProjectsStore _projects;

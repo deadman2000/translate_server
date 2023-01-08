@@ -16,8 +16,6 @@ namespace TranslateServer.Controllers
         private readonly TranslateStore _translates;
         private readonly TextsStore _texts;
 
-        static readonly Dictionary<string, IReplacer> _fixers = CreateFixers();
-
         public FixesController(TranslateStore translates, TextsStore texts)
         {
             _translates = translates;
@@ -27,7 +25,7 @@ namespace TranslateServer.Controllers
         [HttpGet("modes")]
         public ActionResult Modes()
         {
-            return Ok(_fixers.Select(kv => new
+            return Ok(GetFixers().Select(kv => new
             {
                 mode = kv.Key,
                 desc = kv.Value.Description
@@ -44,7 +42,7 @@ namespace TranslateServer.Controllers
         [HttpPost("{project}/get")]
         public async Task<ActionResult> Get(string project, FixesRequest request)
         {
-            if (!_fixers.TryGetValue(request.Mode, out var replacer)) return NotFound();
+            if (!GetFixers().TryGetValue(request.Mode, out var replacer)) return NotFound();
 
             var cursor = await _translates.Collection.FindAsync(t => t.Project == project && t.NextId == null && !t.Deleted);
             List<dynamic> result = new();
@@ -105,13 +103,19 @@ namespace TranslateServer.Controllers
         }
 
 
-        private static Dictionary<string, IReplacer> CreateFixers()
+
+        private static Dictionary<string, IReplacer> _fixers;
+        private static Dictionary<string, IReplacer> GetFixers()
         {
-            return new()
+            return _fixers ??= new()
             {
                 {"twospaces", new RegexReplace("Two Spaces", @"([\.?!])( )([A-ZА-Я\d])", "$1  $3") },
                 {"endemptylines", new TrimEnd("Trim End Empty Lines", '\r', '\n') },
                 {"endwhitespaces", new TrimEnd("Trime End Whitespaces") },
+                {"morewhitespaces", new RegexReplace(">2 Whitespaces", @"([\.?!]  )(\s+)", "$1") },
+                {"dash", new RegexReplace("Dash", @"—", "--") },
+                {"dash2", new RegexReplace("Dash2", @" - ", " -- ") },
+                {"camelcase", new RegexReplace("Camel Case fix", @"([,\w]\s)(О)тдел", "$1отдел") }
             };
         }
 

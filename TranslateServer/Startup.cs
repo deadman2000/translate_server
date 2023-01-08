@@ -83,6 +83,7 @@ namespace TranslateServer
                     q.UseSimpleTypeLoader();
                     q.UseInMemoryStore();
 
+                    InitJob.Schedule(q);
                     ResourceExtractor.Schedule(q);
                     //VideoTextMatcher.Schedule(q); // TODO Вернуть после оптимизации. Считать только по необходимости
                 });

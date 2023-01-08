@@ -24,25 +24,6 @@ namespace TranslateServer.Controllers
             _commentNotify = commentNotify;
         }
 
-        // http://localhost:5000/api/users/init
-        [HttpGet("init")]
-        public async Task<ActionResult> Init()
-        {
-            var cnt = await _users.Collection.CountDocumentsAsync(u => true);
-            if (cnt > 0)
-                return ApiBadRequest("Database is not empty");
-
-            var user = new UserDocument
-            {
-                Login = "admin",
-                Role = UserDocument.ADMIN
-            };
-            user.SetPassword("admin");
-            await _users.Insert(user);
-
-            return Ok("success");
-        }
-
         public class LoginRequest
         {
             public string Login { get; set; }
