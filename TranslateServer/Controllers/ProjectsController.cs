@@ -2,14 +2,18 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using SCI_Lib;
+using SCI_Lib.Resources;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TranslateServer.Helpers;
 using TranslateServer.Model;
+using TranslateServer.Model.Import;
 using TranslateServer.Requests;
 using TranslateServer.Services;
 using TranslateServer.Store;
@@ -26,14 +30,31 @@ namespace TranslateServer.Controllers
         private readonly TextsStore _texts;
         private readonly VolumesStore _volumes;
         private readonly TranslateStore _translates;
+        private readonly TranslateService _translateService;
+        private readonly SearchService _elastic;
+        private readonly SCIService _sci;
+        private readonly PatchesStore _patches;
 
-        public ProjectsController(IOptions<ServerConfig> opConfig, ProjectsStore project, TextsStore texts, VolumesStore volumes, TranslateStore translates)
+        public ProjectsController(IOptions<ServerConfig> opConfig,
+            ProjectsStore project,
+            TextsStore texts,
+            VolumesStore volumes,
+            TranslateStore translates,
+            TranslateService translateService,
+            SearchService elastic,
+            SCIService sci,
+            PatchesStore patches
+        )
         {
             _project = project;
             _config = opConfig.Value;
             _texts = texts;
             _volumes = volumes;
             _translates = translates;
+            _translateService = translateService;
+            _elastic = elastic;
+            _sci = sci;
+            _patches = patches;
         }
 
         [HttpGet]
@@ -65,48 +86,23 @@ namespace TranslateServer.Controllers
             return Ok(project);
         }
 
-        [HttpGet("{shortName}")]
-        public async Task<ActionResult> GetProject(string shortName)
+        [HttpGet("{project}")]
+        public async Task<ActionResult> GetProject(string project)
         {
-            var project = await _project.GetProject(shortName);
-            return Ok(project);
+            return Ok(await _project.GetProject(project));
         }
 
         [AuthAdmin]
         [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
         [DisableRequestSizeLimit]
-        [HttpPost("{shortName}/upload")]
-        public async Task<ActionResult> Upload(string shortName, [FromForm] IFormFile file)
+        [HttpPost("{project}/upload")]
+        public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
+            string targetDir = Path.GetFullPath($"{_config.ProjectsDir}/{project}/");
             try
             {
-                using var ms = new MemoryStream();
-                await file.CopyToAsync(ms);
-
-                using var archive = new ZipArchive(ms);
-
-                var mapEntry = archive.Entries.FirstOrDefault(e => e.Name.Equals("RESOURCE.MAP", StringComparison.OrdinalIgnoreCase));
-                if (mapEntry == null)
-                    return ApiBadRequest("RESOURCE.MAP file not found");
-
-                string targetDir = Path.GetFullPath($"{_config.ProjectsDir}/{shortName}/");
-                Console.WriteLine(targetDir);
-                if (Directory.Exists(targetDir))
-                    Directory.Delete(targetDir, true);
-
-                Directory.CreateDirectory(targetDir);
-
-                if (mapEntry.FullName.Length != mapEntry.Name.Length)
-                {
-                    var dir = mapEntry.FullName.Substring(0, mapEntry.FullName.Length - mapEntry.Name.Length);
-                    archive.ExtractSubDir(targetDir, dir);
-                }
-                else
-                {
-                    archive.ExtractToDirectory(targetDir);
-                }
-
-                await _project.Update(shortName).Set(p => p.Status, ProjectStatus.Processing).Execute();
+                await ExtractToDir(file, targetDir);
+                await _project.Update(project).Set(p => p.Status, ProjectStatus.Processing).Execute();
             }
             catch (InvalidDataException)
             {
@@ -117,11 +113,11 @@ namespace TranslateServer.Controllers
         }
 
         [AuthAdmin]
-        [HttpPost("{shortName}/reindex")]
-        public async Task<ActionResult> Reindex(string shortName, [FromServices] SearchService elastic, [FromServices] TranslateService translateService)
+        [HttpPost("{project}/reindex")]
+        public async Task<ActionResult> Reindex(string project)
         {
-            var textsList = await _texts.Query(t => t.Project == shortName);
-            var tr = await _translates.Query(t => t.Project == shortName && t.NextId == null && !t.Deleted);
+            var textsList = await _texts.Query(t => t.Project == project);
+            var tr = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
 
             await CheckTranslateFlag(textsList, tr);
 
@@ -141,23 +137,23 @@ namespace TranslateServer.Controllers
 
             if (changed)
             {
-                await _volumes.RecalcLetters(shortName, _texts);
-                await _project.RecalcLetters(shortName, _volumes);
+                await _volumes.RecalcLetters(project, _texts);
+                await _project.RecalcLetters(project, _volumes);
             }
 
-            var volumes = await _volumes.Query(v => v.Project == shortName);
+            var volumes = await _volumes.Query(v => v.Project == project);
             foreach (var vol in volumes)
             {
-                await translateService.UpdateVolumeTotal(shortName, vol.Code);
-                await translateService.UpdateVolumeProgress(shortName, vol.Code);
+                await _translateService.UpdateVolumeTotal(project, vol.Code);
+                await _translateService.UpdateVolumeProgress(project, vol.Code);
             }
-            await translateService.UpdateProjectTotal(shortName);
-            await translateService.UpdateProjectProgress(shortName);
+            await _translateService.UpdateProjectTotal(project);
+            await _translateService.UpdateProjectProgress(project);
 
-            await elastic.DeleteProject(shortName);
-            await elastic.InsertTexts(textsList);
+            await _elastic.DeleteProject(project);
+            await _elastic.InsertTexts(textsList);
             if (tr.Any())
-                await elastic.InsertTranslates(tr.ToList());
+                await _elastic.InsertTranslates(tr.ToList());
 
             return Ok();
         }
@@ -183,16 +179,16 @@ namespace TranslateServer.Controllers
         }
 
         [AuthAdmin]
-        [HttpDelete("{shortName}")]
-        public async Task<ActionResult> Delete(string shortName, [FromServices] SCIService sci, [FromServices] PatchesStore patches)
+        [HttpDelete("{project}")]
+        public async Task<ActionResult> Delete(string project)
         {
-            await _volumes.Delete(v => v.Project == shortName);
-            await _texts.Delete(v => v.Project == shortName);
-            await _project.DeleteOne(p => p.Code == shortName);
-            await _translates.Delete(t => t.Project == shortName);
-            sci.DeletePackage(shortName);
-            foreach (var p in await patches.Query(p => p.Project == shortName))
-                await patches.FullDelete(p.Id);
+            await _volumes.Delete(v => v.Project == project);
+            await _texts.Delete(v => v.Project == project);
+            await _project.DeleteOne(p => p.Code == project);
+            await _translates.Delete(t => t.Project == project);
+            _sci.DeletePackage(project);
+            foreach (var p in await _patches.Query(p => p.Project == project))
+                await _patches.FullDelete(p.Id);
 
             return Ok();
         }
@@ -219,6 +215,126 @@ namespace TranslateServer.Controllers
             }
 
             return Ok(list);
+        }
+
+        [AuthAdmin]
+        [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
+        [DisableRequestSizeLimit]
+        [HttpPost("{project}/json")]
+        public async Task<ActionResult> Json(string project, [FromForm] IFormFile file)
+        {
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            ms.Seek(0, SeekOrigin.Begin);
+            var book = await JsonSerializer.DeserializeAsync<ImportBook>(ms);
+
+            var importer = new Importer(project, _volumes, _elastic, _texts, _translates);
+            await importer.Import(book);
+
+            var allVolumes = await _volumes.Query(v => v.Project == project);
+            foreach (var vol in allVolumes)
+                await _translateService.UpdateVolumeProgress(project, vol.Code);
+            await _translateService.UpdateProjectProgress(project);
+
+            return Ok();
+        }
+
+        [AuthAdmin]
+        [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
+        [DisableRequestSizeLimit]
+        [HttpPost("{project}/import")]
+        public async Task<ActionResult> Import(string project, [FromForm] IFormFile file)
+        {
+            var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+            try
+            {
+                await ExtractToDir(file, dir);
+
+                var package = SCIPackage.Load(dir);
+
+                var resources = package.GetTextResources();
+                await _translates.Delete(t => t.Project == project);
+                foreach (var res in resources)
+                {
+                    Console.WriteLine(res.FileName);
+                    var volume = Volume.FileNameToCode(res.FileName);
+
+                    var strings = res.GetStrings();
+                    for (int i = 0; i < strings.Length; i++)
+                    {
+                        var text = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == i);
+                        if (text == null) continue;
+
+                        await _translates.Insert(new TextTranslate()
+                        {
+                            Project = project,
+                            Volume = volume,
+                            Number = i,
+                            Text = strings[i],
+                            Author = "import",
+                            Editor = "import",
+                            DateCreate = DateTime.UtcNow,
+                        });
+
+                    }
+
+                    await _texts.Update(t => t.Project == project && t.Volume == volume)
+                        .Set(t => t.HasTranslate, true)
+                        .ExecuteMany();
+                }
+
+                foreach (var p in await _patches.Query(p => p.Project == project))
+                    await _patches.FullDelete(p.Id);
+
+                var srcPack = _sci.Load(project);
+                var otherRes = package.GetResources(ResType.Font)
+                    .Union(package.GetResources(ResType.View))
+                    .Union(package.GetResources(ResType.Picture))
+                    .Union(package.GetResources(ResType.Cursor));
+
+                foreach (var res in otherRes)
+                {
+                    var cont = res.GetContent();
+                    var src = srcPack.GetResource(res.Type, res.Number);
+                    var srcCont = src.GetContent();
+                    if (!Enumerable.SequenceEqual(cont, srcCont))
+                        await _patches.Save(project, cont, res.FileName, "import");
+                }
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+
+            return Ok();
+        }
+
+        private static async Task ExtractToDir(IFormFile file, string targetDir)
+        {
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+
+            using var archive = new ZipArchive(ms);
+
+            var mapEntry = archive.Entries.FirstOrDefault(e => e.Name.Equals("RESOURCE.MAP", StringComparison.OrdinalIgnoreCase));
+            if (mapEntry == null)
+                throw new Exception("RESOURCE.MAP file not found");
+
+            if (Directory.Exists(targetDir))
+                Directory.Delete(targetDir, true);
+
+            Directory.CreateDirectory(targetDir);
+
+            if (mapEntry.FullName.Length != mapEntry.Name.Length)
+            {
+                var dir = mapEntry.FullName.Substring(0, mapEntry.FullName.Length - mapEntry.Name.Length);
+                archive.ExtractSubDir(targetDir, dir);
+            }
+            else
+            {
+                archive.ExtractToDirectory(targetDir);
+            }
         }
     }
 }
