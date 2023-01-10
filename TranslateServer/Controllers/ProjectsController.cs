@@ -284,6 +284,7 @@ namespace TranslateServer.Controllers
                         .ExecuteMany();
                 }
 
+                Console.WriteLine("Patches");
                 foreach (var p in await _patches.Query(p => p.Project == project))
                     await _patches.FullDelete(p.Id);
 
@@ -301,6 +302,8 @@ namespace TranslateServer.Controllers
                     if (!Enumerable.SequenceEqual(cont, srcCont))
                         await _patches.Save(project, cont, res.FileName, "import");
                 }
+
+                Console.WriteLine("Import completed");
             }
             finally
             {
