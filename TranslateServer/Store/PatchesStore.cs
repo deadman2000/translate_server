@@ -36,6 +36,23 @@ namespace TranslateServer.Store
             return patch;
         }
 
+        public async Task<Patch> Save(string project, byte[] data, string fileName, string user)
+        {
+            var id = await gridFS.UploadFromBytesAsync(fileName, data);
+
+            var patch = new Patch
+            {
+                Project = project,
+                FileName = fileName.ToLower(),
+                FileId = id.ToString(),
+                User = user,
+                UploadDate = DateTime.UtcNow
+            };
+
+            await Insert(patch);
+            return patch;
+        }
+
         public async Task Update(Patch patch, IFormFile file, string user)
         {
             await gridFS.DeleteAsync(new ObjectId(patch.FileId));

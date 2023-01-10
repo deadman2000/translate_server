@@ -1,6 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
+using System.IO;
 
 namespace TranslateServer.Model
 {
@@ -18,5 +19,9 @@ namespace TranslateServer.Model
         public DateTime UploadDate { get; set; }
 
         public bool Deleted { get; set; }
+
+        public string Extension => Path.GetExtension(FileName);
+
+        public int Number => int.TryParse(FileName.Split('.')[0], out var n) ? n : -1;
     }
 }

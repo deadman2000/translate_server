@@ -25,11 +25,10 @@ namespace TranslateServer.Controllers
         [HttpGet]
         public async Task<ActionResult> Get(string project)
         {
-            var patches = await _patches.Queryable()
-                .Where(p => p.Project == project && !p.Deleted)
-                .OrderBy(p => p.FileName)
-                .ToListAsync();
-            return Ok(patches);
+            var patches = await _patches.Query(p => p.Project == project && !p.Deleted);
+            return Ok(patches
+                .OrderBy(p => p.Extension)
+                .ThenBy(p => p.Number));
         }
 
         [RequestFormLimits(ValueLengthLimit = 16 * 1024 * 1024, MultipartBodyLengthLimit = 16 * 1024 * 1024)]
