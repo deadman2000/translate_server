@@ -80,7 +80,7 @@ namespace TranslateServer.Services
                 g => new
                 {
                     Letters = g.Sum(t => t.Letters),
-                    Count = g.Count()
+                    Count = g.Sum(t => t.Texts)
                 })
                 .FirstOrDefaultAsync();
 
