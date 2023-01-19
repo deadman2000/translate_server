@@ -2,6 +2,7 @@
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TranslateServer.Model.Fixes;
 using TranslateServer.Store;
@@ -11,12 +12,12 @@ namespace TranslateServer.Controllers
     [AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
-    public class FixesController : ControllerBase
+    public class ReplaceController : ControllerBase
     {
         private readonly TranslateStore _translates;
         private readonly TextsStore _texts;
 
-        public FixesController(TranslateStore translates, TextsStore texts)
+        public ReplaceController(TranslateStore translates, TextsStore texts)
         {
             _translates = translates;
             _texts = texts;
@@ -51,6 +52,45 @@ namespace TranslateServer.Controllers
             {
                 if (skip != null && skip.Contains(tr.Id)) continue;
                 var replaced = replacer.Replace(tr.Text);
+                if (replaced != tr.Text)
+                {
+                    var src = await _texts.Get(t => t.Project == project && t.Volume == tr.Volume && t.Number == tr.Number);
+
+                    result.Add(new
+                    {
+                        tr.Id,
+                        tr.Volume,
+                        tr.Number,
+                        src = src.Text,
+                        tr.Text,
+                        replaced
+                    });
+                    if (result.Count >= request.Count) break;
+                }
+            }
+            return Ok(result);
+        }
+
+        public class RegexRequest
+        {
+            public string Regex { get; set; }
+            public string Replace { get; set; }
+            public int Count { get; set; }
+            public string[] Skip { get; set; }
+        }
+
+        [HttpPost("{project}/regex")]
+        public async Task<ActionResult> PostRegex(string project, RegexRequest request)
+        {
+            var reg = new Regex(request.Regex, RegexOptions.Compiled | RegexOptions.Multiline);
+
+            var cursor = await _translates.Collection.FindAsync(t => t.Project == project && t.NextId == null && !t.Deleted);
+            List<dynamic> result = new();
+            var skip = request.Skip?.ToHashSet();
+            foreach (var tr in cursor.ToEnumerable())
+            {
+                if (skip != null && skip.Contains(tr.Id)) continue;
+                var replaced = reg.Replace(tr.Text, request.Replace);
                 if (replaced != tr.Text)
                 {
                     var src = await _texts.Get(t => t.Project == project && t.Volume == tr.Volume && t.Number == tr.Number);
@@ -113,9 +153,7 @@ namespace TranslateServer.Controllers
                 {"endemptylines", new TrimEnd("Trim End Empty Lines", '\r', '\n') },
                 {"endwhitespaces", new TrimEnd("Trime End Whitespaces") },
                 {"morewhitespaces", new RegexReplace(">2 Whitespaces", @"([\.?!]  )(\s+)", "$1") },
-                {"dash", new RegexReplace("Dash", @"—", "--") },
-                {"dash2", new RegexReplace("Dash2", @" - ", " -- ") },
-                {"camelcase", new RegexReplace("Camel Case fix", @"([,\w]\s)(О)тдел", "$1отдел") }
+                {"dash", new RegexReplace("Dash", @" - ", " -- ") },
             };
         }
 

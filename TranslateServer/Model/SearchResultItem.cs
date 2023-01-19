@@ -11,5 +11,7 @@
         public int Number { get; set; }
 
         public string Html { get; set; }
+
+        public double? Score { get; set; }
     }
 }

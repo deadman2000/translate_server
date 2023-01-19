@@ -74,7 +74,7 @@ namespace TranslateServer.Services
 
         // https://www.elastic.co/guide/en/elasticsearch/client/net-api/current/writing-queries.html
 
-        public async Task<IEnumerable<SearchResultItem>> Search(string query, bool inSource, bool inTranslated)
+        public async Task<IEnumerable<SearchResultItem>> Search(string query, bool inSource, bool inTranslated, int? skip, int size)
         {
             List<string> indexes = new();
             if (inSource) indexes.Add(SOURCE_TEXT_INDEX);
@@ -90,9 +90,10 @@ namespace TranslateServer.Services
                     //.Fuzziness(Fuzziness.Auto)
                     )
                 )
-                /*.Query(q=>q
-                    .Fuzzy(z=>z
-                        .Field(f=>f.Text).Value(query)
+                /*.Query(q => q
+                    .Fuzzy(z => z
+                        .Field(f => f.Text).Value(query)
+                        .Fuzziness(Fuzziness.Auto)
                     )
                 )*/
                 .Highlight(h => h
@@ -109,12 +110,14 @@ namespace TranslateServer.Services
                         .Field(f => f.Text)
                     )
                 )
-                .Size(10)
+                .Skip(skip)
+                .Size(size)
             );
 
             return resp.Hits.Select(h => new SearchResultItem
             {
                 Id = h.Id,
+                Score = h.Score,
                 Project = h.Source.Project,
                 Volume = h.Source.Volume,
                 Number = h.Source.Number,
@@ -122,9 +125,9 @@ namespace TranslateServer.Services
             });
         }
 
-        public async Task<IEnumerable<SearchResultItem>> Search(string project, string query, bool inSource, bool inTranslated)
+        public async Task<IEnumerable<SearchResultItem>> SearchInProject(string project, string query, bool inSource, bool inTranslated, int? skip, int size)
         {
-            if (project == null) return await Search(query, inSource, inTranslated);
+            if (project == null) return await Search(query, inSource, inTranslated, skip, size);
 
             List<string> indexes = new();
             if (inSource) indexes.Add(SOURCE_TEXT_INDEX);
@@ -140,7 +143,7 @@ namespace TranslateServer.Services
                         .Must(m => m
                             .Match(m => m
                                 .Field(f => f.Text).Query(query)
-                                //.Fuzziness(Fuzziness.Auto)
+                            //.Fuzziness(Fuzziness.Auto)
                             )
                         )
                     )
@@ -164,7 +167,8 @@ namespace TranslateServer.Services
                         .Field(f => f.Text)
                     )
                 )
-                .Size(10)
+                .Skip(skip)
+                .Size(size)
             );
 
             return resp.Hits.Select(h => new SearchResultItem
