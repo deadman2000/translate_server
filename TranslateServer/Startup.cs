@@ -82,6 +82,10 @@ namespace TranslateServer
                     q.UseMicrosoftDependencyInjectionJobFactory();
                     q.UseSimpleTypeLoader();
                     q.UseInMemoryStore();
+                    q.UseDedicatedThreadPool(tp =>
+                    {
+                        tp.MaxConcurrency = 1;
+                    });
 
                     InitJob.Schedule(q);
                     ResourceExtractor.Schedule(q);

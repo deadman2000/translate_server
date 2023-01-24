@@ -19,6 +19,7 @@ namespace TranslateServer.Jobs
         private readonly VolumesStore _volumes;
         private readonly SCIService _sci;
         private readonly ProjectsStore _projects;
+        private readonly TranslateStore _translates;
         private readonly Project _project;
         private SCI_Lib.SCIPackage _package;
 
@@ -29,6 +30,7 @@ namespace TranslateServer.Jobs
             _volumes = scope.ServiceProvider.GetService<VolumesStore>();
             _sci = scope.ServiceProvider.GetService<SCIService>();
             _projects = scope.ServiceProvider.GetService<ProjectsStore>();
+            _translates = scope.ServiceProvider.GetService<TranslateStore>();
             _project = project;
         }
 
@@ -37,15 +39,20 @@ namespace TranslateServer.Jobs
             Console.WriteLine($"Extract resources {_project.Code}");
 
             _package = _sci.Load(_project.Code);
+            var now = DateTime.UtcNow;
 
             await Cleanup();
 
+            HashSet<string> volumesHash = new();
             foreach (var txt in _package.GetResources<ResText>())
             {
                 var strings = txt.GetStrings();
                 if (strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
+                if (volumesHash.Contains(txt.FileName)) continue;
+                Console.WriteLine(txt.FileName);
 
+                volumesHash.Add(txt.FileName);
                 var volume = new Volume(_project, txt.FileName);
                 await _volumes.Insert(volume);
 
@@ -57,12 +64,16 @@ namespace TranslateServer.Jobs
                 }
             }
 
+            volumesHash.Clear();
             foreach (var scr in _package.GetResources<ResScript>())
             {
                 var strings = scr.GetStrings();
                 if (strings == null || strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
+                if (volumesHash.Contains(scr.FileName)) continue;
+                Console.WriteLine(scr.FileName);
 
+                volumesHash.Add(scr.FileName);
                 var volume = new Volume(_project, scr.FileName);
                 await _volumes.Insert(volume);
 
@@ -70,17 +81,39 @@ namespace TranslateServer.Jobs
                 {
                     var val = strings[i];
                     if (!string.IsNullOrWhiteSpace(val))
-                        await _texts.Insert(new TextResource(_project, volume, i, val));
+                    {
+                        var txt = new TextResource(_project, volume, i, val)
+                        {
+                            HasTranslate = true,
+                            TranslateApproved = true
+                        };
+                        await _texts.Insert(txt);
+
+                        await _translates.Insert(new TextTranslate
+                        {
+                            Text = txt.Text,
+                            Letters = txt.Letters,
+                            Project = _project.Code,
+                            Volume = volume.Code,
+                            Number = i,
+                            Author = "system",
+                            Editor = "system",
+                            DateCreate = now,
+                        });
+                    }
                 }
             }
 
-
+            volumesHash.Clear();
             foreach (var msg in _package.GetResources<ResMessage>())
             {
                 var records = msg.GetMessages();
                 if (records.Count == 0) continue;
                 if (!records.Any(r => !string.IsNullOrWhiteSpace(r.Text))) continue;
+                if (volumesHash.Contains(msg.FileName)) continue;
+                Console.WriteLine(msg.FileName);
 
+                volumesHash.Add(msg.FileName);
                 var volume = new Volume(_project, msg.FileName);
                 await _volumes.Insert(volume);
 
@@ -127,6 +160,7 @@ namespace TranslateServer.Jobs
                 }
             }
 
+            Console.WriteLine("Recalc letters...");
             await _volumes.RecalcLetters(_project.Code, _texts);
             await _projects.RecalcLetters(_project.Code, _volumes);
         }
@@ -135,6 +169,7 @@ namespace TranslateServer.Jobs
         {
             await _texts.Delete(r => r.Project == _project.Code);
             await _volumes.Delete(v => v.Project == _project.Code);
+            await _translates.Delete(r => r.Project == _project.Code);
         }
 
         private string ExtractImage(Object1_1 obj)
