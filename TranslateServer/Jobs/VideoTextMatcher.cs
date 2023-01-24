@@ -56,20 +56,8 @@ namespace TranslateServer.Jobs
 
         public async Task Execute(IJobExecutionContext context)
         {
-            await CalcMaxScoore();
             await ProcessTexts();
             await CompleteVideos();
-        }
-
-        private async Task CalcMaxScoore()
-        {
-            while (true)
-            {
-                var texts = (await _texts.Query().Where(t => t.MaxScore == null).Limit(10).Execute()).ToArray();
-                if (texts.Length == 0) break;
-
-                await Task.WhenAll(texts.Select(t => CalcScore(t)).ToArray());
-            }
         }
 
         private async Task ProcessTexts()
@@ -117,13 +105,6 @@ namespace TranslateServer.Jobs
             await _videos.Update().Where(v => v.Id == video.Id).Set(v => v.Completed, true).Execute();
         }
 
-        private async Task CalcScore(TextResource text)
-        {
-            var score = await _search.GetMaxScore(text);
-            if (score == 0) return;
-            await _texts.Update(t => t.Id == text.Id).Set(t => t.MaxScore, score).Execute();
-        }
-
         private async Task Process(VideoText vt)
         {
             var matches = await _search.GetMatch(vt.Project, vt.Text);
@@ -144,6 +125,16 @@ namespace TranslateServer.Jobs
             {
                 _logger.LogError($"Text not found {vt.Project} {m.Volume} {m.Number}");
                 return;
+            }
+
+            if (!txt.MaxScore.HasValue)
+            {
+                var score = await _search.GetMaxScore(txt);
+                if (score > 0)
+                {
+                    await _texts.Update(t => t.Id == txt.Id).Set(t => t.MaxScore, score).Execute();
+                    txt.MaxScore = score;
+                }
             }
 
             if (txt.MaxScore.HasValue)

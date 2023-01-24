@@ -190,6 +190,8 @@ namespace TranslateServer.Controllers
             foreach (var p in await _patches.Query(p => p.Project == project))
                 await _patches.FullDelete(p.Id);
 
+            await _elastic.DeleteProject(project);
+
             return Ok();
         }
 
