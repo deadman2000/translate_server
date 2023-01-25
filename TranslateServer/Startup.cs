@@ -89,7 +89,7 @@ namespace TranslateServer
 
                     InitJob.Schedule(q);
                     ResourceExtractor.Schedule(q);
-                    //VideoTextMatcher.Schedule(q); // TODO Вернуть после оптимизации. Считать только по необходимости
+                    VideoTextMatcher.Schedule(q);
                 });
 
                 services.AddQuartzHostedService();
