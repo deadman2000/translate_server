@@ -150,7 +150,7 @@ namespace TranslateServer.Jobs
                 reference = await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
             if (reference == null)
             {
-                _logger.LogError("Video reference null");
+                _logger.LogError($"Video reference null {vt.Project} {m.Volume} {m.Number} {vt.VideoId}");
                 return;
             }
 

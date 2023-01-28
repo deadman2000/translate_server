@@ -65,7 +65,7 @@ namespace TranslateServer.Controllers
                             trStrings[t.Number] = t.Text;
 
                         if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
-                        
+
                         res.SetStrings(trStrings);
                         var bytes = res.GetPatch();
                         var entry = archive.CreateEntry(resourceName);
@@ -78,7 +78,7 @@ namespace TranslateServer.Controllers
 
                 if (withPatches)
                 {
-                    var patches = await _patches.Query(t => t.Project == project);
+                    var patches = await _patches.Query(p => p.Project == project && !p.Deleted);
                     foreach (var p in patches)
                     {
                         var entry = archive.CreateEntry(p.FileName);
