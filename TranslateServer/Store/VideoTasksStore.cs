@@ -30,7 +30,7 @@ namespace TranslateServer.Store
             });
         }
 
-        public Task CreateGetFrames(string project, string videoId, int frames)
+        public Task CreateGetText(string project, string videoId, int frames)
         {
             List<VideoTask> tasks = new();
             int from = 0;

@@ -50,6 +50,23 @@ namespace TranslateServer.Controllers
             return Ok(video);
         }
 
+        [HttpPost("{id}/restart")]
+        public async Task<ActionResult> Restart(string id)
+        {
+            var video = await _video.Get(v => v.Id == id);
+            if (video == null)
+                return NotFound();
+
+            await _video.Update(v => v.Id == id)
+                .Set(v => v.Completed, false)
+                .Set(v => v.FramesProcessed, 0)
+                .Execute();
+
+            await _videoTasks.CreateGetText(video.Project, video.VideoId, video.FramesCount);
+
+            return Ok();
+        }
+
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id, [FromServices] VideoTextStore videoText, [FromServices] VideoReferenceStore references)
         {
