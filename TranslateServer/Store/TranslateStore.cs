@@ -1,5 +1,6 @@
 ﻿using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -14,10 +15,14 @@ namespace TranslateServer.Store
         {
         }
 
-        public async Task<int> GetUserLetters(string login)
+        public async Task<IEnumerable<ProjectLetters>> GetUserLetters(string login)
         {
             var translates = await Query(t => t.Author == login && t.NextId == null && !t.Deleted);
-            return translates.Distinct(TextTranslate.Comparer).Sum(t => t.Letters);
+            return translates.GroupBy(t => t.Project).Select(gr => new ProjectLetters
+            {
+                Project = gr.Key,
+                Letters = gr.Distinct(TextTranslate.Comparer).Sum(t => t.Letters)
+            });
         }
 
         public async Task<ChartRow[]> GetChart(string login)

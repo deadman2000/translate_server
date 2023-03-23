@@ -1,4 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿using MongoDB.Bson.Serialization.Attributes;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace TranslateServer.Model
 {
@@ -11,7 +13,8 @@ namespace TranslateServer.Model
 
         public string Role { get; set; }
 
-        public int Letters { get; set; }
+        [BsonIgnore]
+        public IEnumerable<ProjectLetters> LettersByProject { get; set; }
 
         public void SetPassword(string pwd)
         {

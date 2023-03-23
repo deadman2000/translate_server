@@ -96,7 +96,7 @@ namespace TranslateServer.Controllers
         {
             var users = (await _users.All()).ToList();
             foreach (var user in users)
-                user.Letters = await translate.GetUserLetters(user.Login);
+                user.LettersByProject = await translate.GetUserLetters(user.Login);
             
             return Ok(users);
         }
