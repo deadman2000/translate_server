@@ -4,6 +4,7 @@ using MongoDB.Driver;
 using System.Threading.Tasks;
 using System.Linq;
 using System;
+using TranslateServer.Model.Yandex;
 
 namespace TranslateServer.Services
 {
@@ -14,14 +15,16 @@ namespace TranslateServer.Services
         private readonly VolumesStore _volumes;
         private readonly ProjectsStore _projects;
         private readonly SearchService _search;
+        private readonly YandexSpellcheck _spellcheck;
 
-        public TranslateService(TranslateStore translate, TextsStore texts, VolumesStore volumes, ProjectsStore projects, SearchService search)
+        public TranslateService(TranslateStore translate, TextsStore texts, VolumesStore volumes, ProjectsStore projects, SearchService search, YandexSpellcheck spellcheck)
         {
             _translate = translate;
             _texts = texts;
             _volumes = volumes;
             _projects = projects;
             _search = search;
+            _spellcheck = spellcheck;
         }
 
         public async Task UpdateVolumeTotal(string project, string volume)
@@ -120,6 +123,12 @@ namespace TranslateServer.Services
 
             text = text.TrimEnd('\r', '\n');
 
+            SpellResult[] spellcheck;
+            if (text != txt.Text)
+                spellcheck = await _spellcheck.Spellcheck(text);
+            else
+                spellcheck = Array.Empty<SpellResult>();
+
             TextTranslate translate = new()
             {
                 Project = project,
@@ -130,6 +139,7 @@ namespace TranslateServer.Services
                 Editor = author,
                 DateCreate = DateTime.UtcNow,
                 Letters = txt.Letters,
+                Spellcheck = spellcheck
             };
 
             if (prevTranslateId != null)

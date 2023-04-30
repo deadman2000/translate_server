@@ -71,6 +71,7 @@ namespace TranslateServer
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();
             services.AddScoped<TranslateService>();
+            services.AddScoped<YandexSpellcheck>();
 
             services.AddSingleton<RunnersService>();
 

@@ -5,7 +5,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Requests;
-using TranslateServer.Services;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers

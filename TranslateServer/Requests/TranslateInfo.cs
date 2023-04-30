@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using TranslateServer.Model;
+using TranslateServer.Model.Yandex;
 
 namespace TranslateServer.Requests
 {
@@ -13,6 +14,7 @@ namespace TranslateServer.Requests
             Editor = tr.Editor;
             DateCreate = tr.DateCreate;
             Text = tr.Text;
+            Spellcheck = tr.Spellcheck;
             Comments = comments;
         }
 
@@ -21,7 +23,7 @@ namespace TranslateServer.Requests
         public string Editor { get; }
         public DateTime DateCreate { get; }
         public string Text { get; }
-
+        public SpellResult[] Spellcheck { get; }
         public IEnumerable<Comment> Comments { get; set; }
     }
 

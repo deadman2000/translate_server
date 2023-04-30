@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using TranslateServer.Model.Yandex;
 
 namespace TranslateServer.Model
 {
@@ -36,6 +37,8 @@ namespace TranslateServer.Model
         public bool Deleted { get; set; }
 
         public int Letters { get; set; }
+
+        public SpellResult[] Spellcheck { get; set; }
 
         class TextTranslateComparer : IEqualityComparer<TextTranslate>
         {
