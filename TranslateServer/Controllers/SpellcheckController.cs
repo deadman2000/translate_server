@@ -32,6 +32,7 @@ namespace TranslateServer.Controllers
                 .Take(10)
                 .Select(t => new
                 {
+                    t.Id,
                     t.Volume,
                     t.Number,
                     t.Text,
@@ -40,23 +41,32 @@ namespace TranslateServer.Controllers
             return Ok(translates);
         }
 
-
         public class SkipRequest
         {
-            public string Volume { get; set; }
-            public int Number { get; set; }
+            public string Id { get; set; }
+            public string Word { get; set; }
         }
 
-        [HttpPost("{project}/skip")]
-        public async Task<ActionResult> Skip(string project, SkipRequest request)
+        [HttpPost("skip")]
+        public async Task<ActionResult> Skip(SkipRequest request)
         {
-            await _translate.Update(t => t.Project == project && t.Volume == request.Volume && t.Number == request.Number && !t.Deleted && t.NextId == null)
-                .Set(t => t.Spellcheck, Array.Empty<SpellResult>())
-                .Execute();
+            if (!string.IsNullOrEmpty(request.Word))
+            {
+                var tr = await _translate.GetById(request.Id);
+                var spellcheck = tr.Spellcheck.Where(s => s.Word != request.Word).ToArray();
+
+                await _translate.Update(t => t.Id == request.Id)
+                    .Set(t => t.Spellcheck, spellcheck)
+                    .Execute();
+            }
+            else
+            {
+                await _translate.Update(t => t.Id == request.Id)
+                    .Set(t => t.Spellcheck, Array.Empty<SpellResult>())
+                    .Execute();
+            }
             return Ok();
         }
-
-
 
         [HttpGet("{project}/total")]
         public ActionResult GetTotal(string project)
