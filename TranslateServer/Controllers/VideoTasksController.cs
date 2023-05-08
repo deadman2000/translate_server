@@ -69,7 +69,6 @@ namespace TranslateServer.Controllers
                     .Execute();
 
                 await _tasks.CreateGetText(task.Project, task.VideoId, request.Frames);
-
             }
 
             return Ok();

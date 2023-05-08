@@ -1,16 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TranslateServer.Model;
-using TranslateServer.Model.Fixes;
 using TranslateServer.Services;
 using TranslateServer.Store;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace TranslateServer.Controllers
 {
@@ -19,13 +16,13 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class SearchController : ApiController
     {
-        private readonly SearchService _elastic;
+        private readonly SearchService _search;
         private readonly TranslateStore _translates;
         private readonly TextsStore _texts;
 
-        public SearchController(SearchService elastic, TranslateStore translates, TextsStore texts)
+        public SearchController(SearchService search, TranslateStore translates, TextsStore texts)
         {
-            _elastic = elastic;
+            _search = search;
             _translates = translates;
             _texts = texts;
         }
@@ -49,7 +46,7 @@ namespace TranslateServer.Controllers
             if (request.Regex)
                 result = await RegexSearch(request);
             else
-                result = await _elastic.SearchInProject(request.Project, request.Query, request.Source, request.Translated, request.Skip, request.Size);
+                result = await _search.SearchInProject(request.Project, request.Query, request.Source, request.Translated, request.Skip, request.Size);
 
             return Ok(new
             {

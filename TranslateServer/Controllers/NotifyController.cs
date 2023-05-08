@@ -159,5 +159,12 @@ namespace TranslateServer.Controllers
 
             return Ok();
         }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(string id)
+        {
+            await _commentNotify.DeleteOne(n => n.Id == id);
+            return Ok();
+        }
     }
 }

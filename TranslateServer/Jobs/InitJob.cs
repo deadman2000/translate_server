@@ -65,6 +65,8 @@ namespace TranslateServer.Jobs
             foreach (var proj in projects)
             {
                 var translates = (await _translate.Query(t => t.Project == proj && !t.Deleted && t.NextId == null && t.Spellcheck == null)).ToArray();
+                if (translates.Length == 0) continue;
+
                 var texts = translates.Select(t => t.Text).ToArray();
 
                 var result = _spellcheck.Spellcheck(texts);

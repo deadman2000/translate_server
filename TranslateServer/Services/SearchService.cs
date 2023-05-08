@@ -87,15 +87,8 @@ namespace TranslateServer.Services
                 .Query(q => q
                     .Match(m => m
                         .Field(f => f.Text).Query(query)
-                    //.Fuzziness(Fuzziness.Auto)
                     )
                 )
-                /*.Query(q => q
-                    .Fuzzy(z => z
-                        .Field(f => f.Text).Value(query)
-                        .Fuzziness(Fuzziness.Auto)
-                    )
-                )*/
                 .Highlight(h => h
                     .PreTags("<em>")
                     .PostTags("</em>")
@@ -103,7 +96,6 @@ namespace TranslateServer.Services
                     .HighlightQuery(q => q
                         .Match(m => m
                             .Field(f => f.Text).Query(query)
-                        //.Fuzziness(Fuzziness.Auto)
                         )
                     )
                     .Fields(fs => fs
@@ -121,7 +113,7 @@ namespace TranslateServer.Services
                 Project = h.Source.Project,
                 Volume = h.Source.Volume,
                 Number = h.Source.Number,
-                Html = h.Highlight.GetValueOrDefault("text")?.FirstOrDefault() ?? h.Source.Text,
+                Html = h.Highlight.GetValueOrDefault("text")?.FirstOrDefault() ?? h.Source.Text
             });
         }
 
@@ -143,16 +135,10 @@ namespace TranslateServer.Services
                         .Must(m => m
                             .Match(m => m
                                 .Field(f => f.Text).Query(query)
-                            //.Fuzziness(Fuzziness.Auto)
                             )
                         )
                     )
                 )
-                /*.Query(q=>q
-                    .Fuzzy(z=>z
-                        .Field(f=>f.Text).Value(query)
-                    )
-                )*/
                 .Highlight(h => h
                     .PreTags("<em>")
                     .PostTags("</em>")
@@ -160,7 +146,6 @@ namespace TranslateServer.Services
                     .HighlightQuery(q => q
                         .Match(m => m
                             .Field(f => f.Text).Query(query)
-                        //.Fuzziness(Fuzziness.Auto)
                         )
                     )
                     .Fields(fs => fs
@@ -174,6 +159,7 @@ namespace TranslateServer.Services
             return resp.Hits.Select(h => new SearchResultItem
             {
                 Id = h.Id,
+                Score = h.Score,
                 Project = h.Source.Project,
                 Volume = h.Source.Volume,
                 Number = h.Source.Number,
