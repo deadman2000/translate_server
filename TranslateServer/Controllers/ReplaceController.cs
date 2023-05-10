@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TranslateServer.Model.Fixes;
+using TranslateServer.Services;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
@@ -12,15 +13,17 @@ namespace TranslateServer.Controllers
     [AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
-    public class ReplaceController : ControllerBase
+    public class ReplaceController : ApiController
     {
         private readonly TranslateStore _translates;
         private readonly TextsStore _texts;
+        private readonly TranslateService _translateService;
 
-        public ReplaceController(TranslateStore translates, TextsStore texts)
+        public ReplaceController(TranslateStore translates, TextsStore texts, TranslateService translateService)
         {
             _translates = translates;
             _texts = texts;
+            _translateService = translateService;
         }
 
         [HttpGet("modes")]
@@ -79,6 +82,7 @@ namespace TranslateServer.Controllers
             public string[] Skip { get; set; }
         }
 
+        // Замена заглавной буквы: '(?<!\.)\s+Полко', ' полко'
         [HttpPost("{project}/regex")]
         public async Task<ActionResult> PostRegex(string project, RegexRequest request)
         {
@@ -119,9 +123,15 @@ namespace TranslateServer.Controllers
         [HttpPost("apply")]
         public async Task<ActionResult> Apply(ApplyRequest request)
         {
-            await _translates.Update(t => t.Id == request.Id)
+            var tr = await _translates.Get(t => t.Id == request.Id);
+            if (tr == null) return NotFound();
+
+            await _translateService.Submit(tr.Project, tr.Volume, tr.Number, request.Replace, UserLogin, request.Id);
+            
+            /*await _translates.Update(t => t.Id == request.Id)
                 .Set(t => t.Text, request.Replace)
-                .Execute();
+                .Execute();*/
+
             return Ok();
         }
 
