@@ -103,9 +103,12 @@ namespace TranslateServer.Controllers
                 }
             }
 
+            string fileName = project;
+            if (!full) fileName += "_patch";
+
             ms.Seek(0, SeekOrigin.Begin);
             Response.StatusCode = 200;
-            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{project}.zip\"");
+            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{fileName}.zip\"");
             Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
             await ms.CopyToAsync(Response.Body);
         }
