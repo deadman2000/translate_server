@@ -57,5 +57,7 @@ namespace TranslateServer.Model
 
         [BsonIgnoreIfNull]
         public double? MaxScore { get; set; }
+
+        public string Description { get; set; }
     }
 }
