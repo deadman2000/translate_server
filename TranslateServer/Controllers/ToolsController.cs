@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SCI_Lib.Utils;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -9,7 +9,7 @@ using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
-    [AuthAdmin]
+    //[AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
     public class ToolsController : ControllerBase
@@ -132,6 +132,25 @@ namespace TranslateServer.Controllers
                     }
                 }
             }
+            return Ok();
+        }
+
+        [HttpPost("said/{project}/{num}")]
+        public async Task<ActionResult> ExtractSaids(string project, ushort num, [FromServices] SCIService sci)
+        {
+            var package = sci.Load(project);
+            var extract = new SaidExtract(package);
+            var saids = extract.Process(num);
+            var volume = $"text_{num:D3}";
+            for (int i = 0; i < saids.Length; i++)
+            {
+                var said = saids[i];
+                if (!string.IsNullOrEmpty(said))
+                    await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == i)
+                        .Set(t => t.Description, said)
+                        .Execute();
+            }
+
             return Ok();
         }
     }
