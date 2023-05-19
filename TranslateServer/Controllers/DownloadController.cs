@@ -26,6 +26,28 @@ namespace TranslateServer.Controllers
             _patches = patches;
         }
 
+        [HttpGet("source")]
+        public async Task Source(string project)
+        {
+            var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                var path = _sci.GetProjectPath(project);
+                var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+                foreach (var f in files)
+                {
+                    var relativePath = Path.GetRelativePath(path, f);
+                    archive.CreateEntryFromFile(f, relativePath);
+                }
+            }
+
+            ms.Seek(0, SeekOrigin.Begin);
+            Response.StatusCode = 200;
+            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{project}_src.zip\"");
+            Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
+            await ms.CopyToAsync(Response.Body);
+        }
+
         [HttpGet("full")]
         public Task Full(string project)
         {

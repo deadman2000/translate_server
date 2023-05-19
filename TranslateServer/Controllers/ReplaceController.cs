@@ -82,7 +82,7 @@ namespace TranslateServer.Controllers
             public string[] Skip { get; set; }
         }
 
-        // Замена заглавной буквы: '(?<![\.!?])\s+Вы', ' вы'
+        // Замена заглавной буквы: '([\w,-])\sВы', '$1 вы'
         [HttpPost("{project}/regex")]
         public async Task<ActionResult> PostRegex(string project, RegexRequest request)
         {

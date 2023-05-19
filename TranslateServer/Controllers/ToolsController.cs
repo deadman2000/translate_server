@@ -9,7 +9,7 @@ using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
-    //[AuthAdmin]
+    [AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
     public class ToolsController : ControllerBase
@@ -145,10 +145,9 @@ namespace TranslateServer.Controllers
             for (int i = 0; i < saids.Length; i++)
             {
                 var said = saids[i];
-                if (!string.IsNullOrEmpty(said))
-                    await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == i)
-                        .Set(t => t.Description, said)
-                        .Execute();
+                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == i)
+                    .Set(t => t.Description, said)
+                    .Execute();
             }
 
             return Ok();

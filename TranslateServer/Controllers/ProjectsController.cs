@@ -98,7 +98,7 @@ namespace TranslateServer.Controllers
         [HttpPost("{project}/upload")]
         public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
-            string targetDir = Path.GetFullPath($"{_config.ProjectsDir}/{project}/");
+            string targetDir = _sci.GetProjectPath(project);
             try
             {
                 await ExtractToDir(file, targetDir);
@@ -108,6 +108,31 @@ namespace TranslateServer.Controllers
             {
                 return ApiBadRequest("Wrong zip archive");
             }
+
+            return Ok();
+        }
+
+        [AuthAdmin]
+        [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
+        [DisableRequestSizeLimit]
+        [HttpPost("{project}/replace")]
+        public async Task<ActionResult> Replace(string project, [FromForm] IFormFile file)
+        {
+
+            string targetDir = _sci.GetProjectPath(project);
+            var targetDirTmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+            try
+            {
+                await ExtractToDir(file, targetDirTmp);
+            }
+            catch (InvalidDataException)
+            {
+                return ApiBadRequest("Wrong zip archive");
+            }
+
+            Directory.Delete(targetDir, true);
+            Directory.Move(targetDirTmp, targetDir);
 
             return Ok();
         }
