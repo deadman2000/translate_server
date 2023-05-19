@@ -99,6 +99,9 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
             string targetDir = _sci.GetProjectPath(project);
+            if (Directory.Exists(targetDir))
+                return await ReplaceArchive(targetDir, file);
+
             try
             {
                 await ExtractToDir(file, targetDir);
@@ -112,14 +115,9 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        [AuthAdmin]
-        [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
-        [DisableRequestSizeLimit]
-        [HttpPost("{project}/replace")]
-        public async Task<ActionResult> Replace(string project, [FromForm] IFormFile file)
+        private async Task<ActionResult> ReplaceArchive(string targetDir, IFormFile file)
         {
 
-            string targetDir = _sci.GetProjectPath(project);
             var targetDirTmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
             try
