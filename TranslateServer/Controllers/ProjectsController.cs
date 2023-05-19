@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TranslateServer.Helpers;
@@ -100,37 +101,20 @@ namespace TranslateServer.Controllers
         {
             string targetDir = _sci.GetProjectPath(project);
             if (Directory.Exists(targetDir))
-                return await ReplaceArchive(targetDir, file);
+                Directory.Delete(targetDir, true);
 
             try
             {
                 await ExtractToDir(file, targetDir);
-                await _project.Update(project).Set(p => p.Status, ProjectStatus.Processing).Execute();
+
+                await _project.Update(p => p.Code == project && p.Status == ProjectStatus.New)
+                    .Set(p => p.Status, ProjectStatus.Processing)
+                    .Execute();
             }
             catch (InvalidDataException)
             {
                 return ApiBadRequest("Wrong zip archive");
             }
-
-            return Ok();
-        }
-
-        private async Task<ActionResult> ReplaceArchive(string targetDir, IFormFile file)
-        {
-
-            var targetDirTmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-
-            try
-            {
-                await ExtractToDir(file, targetDirTmp);
-            }
-            catch (InvalidDataException)
-            {
-                return ApiBadRequest("Wrong zip archive");
-            }
-
-            Directory.Delete(targetDir, true);
-            Directory.Move(targetDirTmp, targetDir);
 
             return Ok();
         }
