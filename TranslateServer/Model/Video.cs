@@ -6,6 +6,8 @@
 
         public string VideoId { get; set; }
 
+        public string Filters { get; set; }
+
         public bool Completed { get; set; }
 
         public int FramesProcessed { get; set; }

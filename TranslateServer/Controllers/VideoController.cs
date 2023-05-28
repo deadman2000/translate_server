@@ -62,7 +62,7 @@ namespace TranslateServer.Controllers
                 .Set(v => v.FramesProcessed, 0)
                 .Execute();
 
-            await _videoTasks.CreateGetText(video.Project, video.VideoId, video.FramesCount);
+            await _videoTasks.CreateGetText(video.Project, video.VideoId, video.Filters, video.FramesCount);
 
             return Ok();
         }

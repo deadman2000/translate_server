@@ -30,7 +30,7 @@ namespace TranslateServer.Store
             });
         }
 
-        public Task CreateGetText(string project, string videoId, int frames)
+        public Task CreateGetText(string project, string videoId, string filters, int frames)
         {
             List<VideoTask> tasks = new();
             int from = 0;
@@ -41,6 +41,7 @@ namespace TranslateServer.Store
                     Type = VideoTask.GET_TEXT,
                     Project = project,
                     VideoId = videoId,
+                    Filters = filters,
                     Frame = from,
                     Count = Math.Min(frames - from, FramesInTask),
                     FrameSkip = FrameSkip

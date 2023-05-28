@@ -23,6 +23,9 @@ namespace TranslateServer.Model
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int[] Frames { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Filters { get; set; }
+
         [JsonIgnore]
         public DateTime? LastRequest { get; set; }
 

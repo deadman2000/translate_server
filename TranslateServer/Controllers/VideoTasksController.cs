@@ -68,7 +68,9 @@ namespace TranslateServer.Controllers
                     .Set(v => v.Fps, request.Fps)
                     .Execute();
 
-                await _tasks.CreateGetText(task.Project, task.VideoId, request.Frames);
+                var video = await _videos.Get(v => v.VideoId == task.VideoId);
+
+                await _tasks.CreateGetText(task.Project, task.VideoId, video.Filters, request.Frames);
             }
 
             return Ok();
