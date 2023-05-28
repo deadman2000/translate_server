@@ -127,10 +127,6 @@ namespace TranslateServer.Controllers
             if (tr == null) return NotFound();
 
             await _translateService.Submit(tr.Project, tr.Volume, tr.Number, request.Replace, UserLogin, request.Id);
-            
-            /*await _translates.Update(t => t.Id == request.Id)
-                .Set(t => t.Text, request.Replace)
-                .Execute();*/
 
             return Ok();
         }
@@ -145,9 +141,10 @@ namespace TranslateServer.Controllers
         {
             foreach (var item in request.Items)
             {
-                await _translates.Update(t => t.Id == item.Id)
-                    .Set(t => t.Text, item.Replace)
-                    .Execute();
+                var tr = await _translates.Get(t => t.Id == item.Id);
+                if (tr == null) continue;
+
+                await _translateService.Submit(tr.Project, tr.Volume, tr.Number, item.Replace, UserLogin, item.Id);
             }
             return Ok();
         }
