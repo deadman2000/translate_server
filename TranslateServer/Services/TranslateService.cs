@@ -115,7 +115,7 @@ namespace TranslateServer.Services
                 .Execute();
         }
 
-        public async Task<TextTranslate> Submit(string project, string volume, int number, string text, string author, string prevTranslateId = null)
+        public async Task<TextTranslate> Submit(string project, string volume, int number, string text, string author, bool approveTransfer, string prevTranslateId = null)
         {
             var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
             if (txt == null)
@@ -175,7 +175,7 @@ namespace TranslateServer.Services
                 await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, true).Execute();
                 needUpdate = true;
             }
-            else if (txt.TranslateApproved)
+            else if (txt.TranslateApproved && !approveTransfer)
             {
                 await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, false).Execute();
                 needUpdate = true;

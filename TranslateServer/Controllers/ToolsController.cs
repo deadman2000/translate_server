@@ -1,15 +1,20 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SCI_Lib.Resources.Scripts.Elements;
+using SCI_Lib.Resources.Scripts.Sections;
+using SCI_Lib.Resources.Scripts;
+using SCI_Lib.Resources;
 using SCI_Lib.Utils;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
 using TranslateServer.Store;
+using TranslateServer.Helpers;
 
 namespace TranslateServer.Controllers
 {
-    [AuthAdmin]
+    //[AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
     public class ToolsController : ControllerBase
@@ -139,15 +144,52 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> ExtractSaids(string project, ushort num, [FromServices] SCIService sci)
         {
             var package = sci.Load(project);
-            var extract = new SaidExtract(package);
+            var extract = new SaidExtractWeb(package);
             var saids = extract.Process(num);
             var volume = $"text_{num:D3}";
-            for (int i = 0; i < saids.Length; i++)
+            for (int ind = 0; ind < saids.Length; ind++)
             {
-                var said = saids[i];
-                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == i)
+                var said = saids[ind];
+                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == ind)
                     .Set(t => t.Description, said)
                     .Execute();
+            }
+
+            return Ok();
+        }
+
+        [HttpPost("said2/{project}")]
+        public async Task<ActionResult> ExtractSaids2(string project, [FromServices] SCIService sci)
+        {
+            ushort num = 210;
+            var verbCnt = 9;
+            var msgOffset = 0;
+            var verbOffset = 76;
+            var nounOffset = 85;
+            var rangesOffset = 123;
+
+            var package = sci.Load(project);
+            var res = package.GetResource<ResScript>(num);
+            var scr = res.GetScript() as Script;
+            var vars = scr.Get<LocalVariablesSection>()[0].Vars;
+
+            for (int verbInd = 0; verbInd <= verbCnt; verbInd++)
+            {
+                var from = (ushort)vars[rangesOffset + verbInd * 2];
+                var to = from + (ushort)vars[rangesOffset + verbInd * 2 + 1];
+                for (int noun = from; noun < to; noun++)
+                {
+                    var txtRes = (ushort)vars[msgOffset + noun * 2];
+                    var txtInd = (ushort)vars[msgOffset + noun * 2 + 1];
+                    var verb = ((SaidExpression)((RefToElement)vars[verbOffset + verbInd]).Reference).Label.TrimEnd('>');
+                    var volume = $"text_{txtRes:D3}";
+                    var said = $"{verb}{vars[nounOffset + noun]}";
+
+                    System.Console.WriteLine($"{said}  {txtRes}:{txtInd}");
+                    await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == txtInd)
+                        .Set(t => t.Description, said)
+                        .Execute();
+                }
             }
 
             return Ok();

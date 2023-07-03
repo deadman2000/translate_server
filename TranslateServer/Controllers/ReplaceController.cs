@@ -126,7 +126,7 @@ namespace TranslateServer.Controllers
             var tr = await _translates.Get(t => t.Id == request.Id);
             if (tr == null) return NotFound();
 
-            await _translateService.Submit(tr.Project, tr.Volume, tr.Number, request.Replace, UserLogin, request.Id);
+            await _translateService.Submit(tr.Project, tr.Volume, tr.Number, request.Replace, UserLogin, true, request.Id);
 
             return Ok();
         }
@@ -144,7 +144,7 @@ namespace TranslateServer.Controllers
                 var tr = await _translates.Get(t => t.Id == item.Id);
                 if (tr == null) continue;
 
-                await _translateService.Submit(tr.Project, tr.Volume, tr.Number, item.Replace, UserLogin, item.Id);
+                await _translateService.Submit(tr.Project, tr.Volume, tr.Number, item.Replace, UserLogin, true, item.Id);
             }
             return Ok();
         }

@@ -48,7 +48,7 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Submit([FromBody] SubmitRequest request)
         {
-            var translate = await _translateService.Submit(request.Project, request.Volume, request.Number, request.Text, UserLogin, request.TranslateId);
+            var translate = await _translateService.Submit(request.Project, request.Volume, request.Number, request.Text, UserLogin, false, request.TranslateId);
             if (translate == null) return NotFound();
 
             var comments = await _comments.GetComments(translate);
