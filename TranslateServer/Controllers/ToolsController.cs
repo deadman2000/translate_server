@@ -1,16 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SCI_Lib.Resources;
+using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.Resources.Scripts.Sections;
-using SCI_Lib.Resources.Scripts;
-using SCI_Lib.Resources;
-using SCI_Lib.Utils;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TranslateServer.Helpers;
 using TranslateServer.Model;
 using TranslateServer.Services;
 using TranslateServer.Store;
-using TranslateServer.Helpers;
 
 namespace TranslateServer.Controllers
 {
@@ -23,13 +24,15 @@ namespace TranslateServer.Controllers
         private readonly TranslateStore _translate;
         private readonly TextsStore _texts;
         private readonly SearchService _search;
+        private readonly SCIService _sci;
 
-        public ToolsController(ILogger<ToolsController> logger, TranslateStore translate, TextsStore texts, SearchService search)
+        public ToolsController(ILogger<ToolsController> logger, TranslateStore translate, TextsStore texts, SearchService search, SCIService sci)
         {
             _logger = logger;
             _translate = translate;
             _texts = texts;
             _search = search;
+            _sci = sci;
         }
 
         [HttpPost("import/{from}/{to}")]
@@ -141,9 +144,9 @@ namespace TranslateServer.Controllers
         }
 
         [HttpPost("said/{project}/{num}")]
-        public async Task<ActionResult> ExtractSaids(string project, ushort num, [FromServices] SCIService sci)
+        public async Task<ActionResult> ExtractSaids(string project, ushort num)
         {
-            var package = sci.Load(project);
+            var package = _sci.Load(project);
             var extract = new SaidExtractWeb(package);
             var saids = extract.Process(num);
             var volume = $"text_{num:D3}";
@@ -159,7 +162,7 @@ namespace TranslateServer.Controllers
         }
 
         [HttpPost("said2/{project}")]
-        public async Task<ActionResult> ExtractSaids2(string project, [FromServices] SCIService sci)
+        public async Task<ActionResult> ExtractSaids2(string project)
         {
             ushort num = 210;
             var verbCnt = 9;
@@ -168,7 +171,7 @@ namespace TranslateServer.Controllers
             var nounOffset = 85;
             var rangesOffset = 123;
 
-            var package = sci.Load(project);
+            var package = _sci.Load(project);
             var res = package.GetResource<ResScript>(num);
             var scr = res.GetScript() as Script;
             var vars = scr.Get<LocalVariablesSection>()[0].Vars;
@@ -189,6 +192,87 @@ namespace TranslateServer.Controllers
                     await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == txtInd)
                         .Set(t => t.Description, said)
                         .Execute();
+                }
+            }
+
+            return Ok();
+        }
+
+        [HttpPost("tells")]
+        public async Task<ActionResult> Tells()
+        {
+            Dictionary<string, string> translates = new()
+            {
+                {"bed", "кровать" },
+                {"carpet", "ковер" },
+                {"celie", "сели" },
+                {"chair", "стул" },
+                {"clarence", "кларенса" },
+                {"colonel", "полковника" },
+                {"couch", "диван" },
+                {"crank", "рычаг" },
+                {"door", "дверь" },
+                {"elevator", "лифт" },
+                {"equipment", "прачечную" },
+                {"ethel", "этель" },
+                {"eye", "глаз" },
+                {"fifi", "фифи" },
+                {"fire", "огонь" },
+                {"fireplace", "камин" },
+                {"floor", "пол" },
+                {"gertie", "герти" },
+                {"gloria", "глорию" },
+                {"ground", "землю" },
+                {"horse", "лошадь" },
+                {"house", "дом" },
+                {"jeeves", "дживса" },
+                {"lamp", "лампу" },
+                {"lillian", "лилиан" },
+                {"mantel", "каминную полку" },
+                {"mirror", "зеркало" },
+                {"owl", "сову" },
+                {"picture", "картину" },
+                {"platform", "платформу" },
+                {"rudy", "руди" },
+                {"sofa", "софу" },
+                {"table", "стол" },
+                {"wilbur", "уилбура" },
+                {"window", "окно" },
+            };
+
+            var package = _sci.Load("colonels_bequest");
+
+            foreach (var res in package.GetResources<ResScript>())
+            {
+                var volume = $"script_{res.Number:D3}";
+                var scr = res.GetScript() as Script;
+                var strings = scr.AllStrings().ToList();
+                foreach (var cs in scr.Get<CodeSection>())
+                {
+                    foreach (var op in cs.Operators)
+                    {
+                        if (op.Name == "callb")
+                        {
+                            if ((byte)op.Arguments[0] == 0x19 && (byte)op.Arguments[1] == 2)
+                            {
+                                var r = op.Prev.Prev.Arguments[0] as CodeRef;
+                                var s = r.Reference as StringConst;
+                                var ind = strings.IndexOf(s);
+                                Console.WriteLine($"{res.Number}:{ind}  {s.Value}");
+
+                                if (!translates.TryGetValue(s.Value, out var translate)) continue;
+
+                                var tr = await _translate.Get(t => t.Project == "colonels_bequest" && !t.Deleted && t.NextId == null
+                                    && t.Volume == volume && t.Number == ind);
+
+                                if (tr == null) throw new Exception();
+                                if (tr.Text != s.Value)
+                                    Console.WriteLine($"{tr.Text} != {s.Value}");
+
+                                await _translate.Update(t => t.Id == tr.Id).Set(t => t.Text, translate).Execute();
+                            }
+                        }
+                    }
                 }
             }
 
