@@ -59,7 +59,8 @@ namespace TranslateServer.Jobs
 
         private async Task Spellchecking()
         {
-            _logger.LogInformation("Spell checking...");
+            // TODO Ignore untranslated
+            /*_logger.LogInformation("Spell checking...");
 
             var projects = (await _projects.All()).Select(p => p.Code);
             foreach (var proj in projects)
@@ -73,24 +74,24 @@ namespace TranslateServer.Jobs
                 int i = 0;
                 await foreach (var res in result)
                 {
-                    var spellchecl = res;
+                    var spellcheck = res;
                     var tr = translates[i];
 
                     if (res.Length > 0)
                     {
                         var txt = await _texts.Get(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number);
                         if (txt.Text == tr.Text)
-                            spellchecl = Array.Empty<SpellResult>();
+                            spellcheck = Array.Empty<SpellResult>();
                     }
 
                     await _translate.Update(t => t.Id == tr.Id)
-                        .Set(t => t.Spellcheck, spellchecl)
+                        .Set(t => t.Spellcheck, spellcheck)
                         .Execute();
                     i++;
                 }
             }
 
-            _logger.LogInformation("Spell checking done");
+            _logger.LogInformation("Spell checking done");*/
         }
 
         private async Task SpellFix()

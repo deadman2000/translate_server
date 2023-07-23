@@ -123,6 +123,7 @@ namespace TranslateServer.Controllers
         [HttpPost("{project}/reindex")]
         public async Task<ActionResult> Reindex(string project)
         {
+            await Console.Out.WriteLineAsync($"Reindex {project}");
             var textsList = await _texts.Query(t => t.Project == project);
             var tr = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
 
@@ -162,6 +163,7 @@ namespace TranslateServer.Controllers
             if (tr.Any())
                 await _elastic.InsertTranslates(tr.ToList());
 
+            await Console.Out.WriteLineAsync($"Reindex end {project}");
             return Ok();
         }
 
