@@ -32,9 +32,10 @@ namespace TranslateServer.Model
     public enum ProjectStatus
     {
         New = 0,
-        Processing = 1,
-        Working = 2,
-        Completed = 3,
-        Error = 4,
+        TextExtract = 1,
+        ResourceExtract = 2,
+        Indexing = 3,
+        Ready = 4,
+        Error = 5,
     }
 }

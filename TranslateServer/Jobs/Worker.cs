@@ -33,8 +33,6 @@ namespace TranslateServer.Jobs
 
         public async Task Extract()
         {
-            Console.WriteLine($"Extract resources {_project.Code}");
-
             _package = _sci.Load(_project.Code);
             var now = DateTime.UtcNow;
 

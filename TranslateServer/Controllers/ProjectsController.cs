@@ -108,7 +108,7 @@ namespace TranslateServer.Controllers
                 await ExtractToDir(file, targetDir);
 
                 await _project.Update(p => p.Code == project && p.Status == ProjectStatus.New)
-                    .Set(p => p.Status, ProjectStatus.Processing)
+                    .Set(p => p.Status, ProjectStatus.TextExtract)
                     .Execute();
             }
             catch (InvalidDataException)

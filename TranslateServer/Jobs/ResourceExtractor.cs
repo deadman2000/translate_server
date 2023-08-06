@@ -1,6 +1,11 @@
-﻿using MongoDB.Driver;
+﻿using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 using Quartz;
+using SCI_Lib.Resources.Scripts.Analyzer;
+using SCI_Lib.Resources.Scripts.Elements;
+using SCI_Lib.SCI0;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -11,10 +16,12 @@ namespace TranslateServer.Jobs
 {
     class ResourceExtractor : IJob
     {
+        private readonly ILogger<ResourceExtractor> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly ProjectsStore _projects;
         private readonly TextsStore _texts;
         private readonly SearchService _search;
+        private readonly SCIService _sci;
 
         public static void Schedule(IServiceCollectionQuartzConfigurator q)
         {
@@ -26,36 +33,41 @@ namespace TranslateServer.Jobs
             );
         }
 
-        public ResourceExtractor(IServiceProvider serviceProvider, ProjectsStore projects, TextsStore texts, SearchService search)
+        public ResourceExtractor(ILogger<ResourceExtractor> logger, IServiceProvider serviceProvider, ProjectsStore projects, TextsStore texts, SearchService search, SCIService sci)
         {
+            _logger = logger;
             _serviceProvider = serviceProvider;
             _projects = projects;
             _texts = texts;
             _search = search;
+            _sci = sci;
         }
 
         public async Task Execute(IJobExecutionContext context)
         {
-            var toProcess = await _projects.Query(p => p.Status == ProjectStatus.Processing);
+            await TextExtract();
+            await ResExtract();
+        }
+
+        private async Task TextExtract()
+        {
+            var toProcess = await _projects.Query(p => p.Status == ProjectStatus.TextExtract);
             foreach (var project in toProcess)
             {
-                Console.WriteLine($"Extracting resources for {project.Code}");
+                _logger.LogInformation($"Extracting text for {project.Code}");
                 try
                 {
                     Worker worker = new(_serviceProvider, project);
                     await worker.Extract();
 
+                    _logger.LogInformation($"Project {project.Code} text extracted");
                     await _projects.Update(p => p.Id == project.Id)
-                        .Set(p => p.Status, ProjectStatus.Working)
+                        .Set(p => p.Status, ProjectStatus.ResourceExtract)
                         .Execute();
-
-                    await CreateIndex(project);
-
-                    Console.WriteLine($"Project {project.Code} resources extracted");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex);
+                    _logger.LogError(ex, $"{project.Code} Text extract error");
                     await _projects.Update(p => p.Id == project.Id)
                         .Set(p => p.Status, ProjectStatus.Error)
                         .Set(p => p.Error, ex.ToString())
@@ -64,9 +76,66 @@ namespace TranslateServer.Jobs
             }
         }
 
+        private async Task ResExtract()
+        {
+            var toProcess = await _projects.Query(p => p.Status == ProjectStatus.ResourceExtract);
+            foreach (var project in toProcess)
+            {
+                _logger.LogInformation($"Extracting resources for {project.Code}");
+                try
+                {
+                    await CreateIndex(project);
+                    await PrintUsage(project);
+
+                    _logger.LogInformation($"Project {project.Code} resources extracted");
+                    await _projects.Update(p => p.Id == project.Id)
+                        .Set(p => p.Status, ProjectStatus.Ready)
+                        .Execute();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"{project.Code} Res extract error");
+                    await _projects.Update(p => p.Id == project.Id)
+                        .Set(p => p.Status, ProjectStatus.Error)
+                        .Set(p => p.Error, ex.ToString())
+                        .Execute();
+                }
+            }
+        }
+
+        private async Task PrintUsage(Project project)
+        {
+            try
+            {
+                var package = _sci.Load(project.Code);
+                if (package is not SCI0Package) return;
+
+                var search = new TextUsageSearch(package);
+                var result = search.FindUsage();
+                foreach (var p in result)
+                {
+                    IEnumerable<SaidExpression> saids = p.Saids;
+                    foreach (var said in saids)
+                        said.Normalize();
+                    saids = saids.Where(s => s.Label != "kiss/angel>"); // PQ2
+
+                    var volume = $"text_{p.Script:D3}";
+                    var descr = string.Join('\n', saids.Select(s => s.Label));
+
+                    await _texts.Update(t => t.Project == project.Code && t.Volume == volume && t.Number == p.Index)
+                        .Set(t => t.Description, descr)
+                        .Execute();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{project.Code} Extract print said error");
+            }
+        }
+
         private async Task CreateIndex(Project project)
         {
-            Console.WriteLine("Indexing...");
+            _logger.LogInformation($"Indexing {project.Code}");
 
             var items = await _texts.Query(t => t.Project == project.Code);
 
