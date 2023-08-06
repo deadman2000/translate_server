@@ -15,7 +15,6 @@ namespace TranslateServer.Jobs
         private readonly TextsStore _texts;
         private readonly VolumesStore _volumes;
         private readonly SCIService _sci;
-        private readonly ProjectsStore _projects;
         private readonly TranslateStore _translates;
         private readonly Project _project;
         private SCI_Lib.SCIPackage _package;
@@ -26,7 +25,6 @@ namespace TranslateServer.Jobs
             _texts = scope.ServiceProvider.GetService<TextsStore>();
             _volumes = scope.ServiceProvider.GetService<VolumesStore>();
             _sci = scope.ServiceProvider.GetService<SCIService>();
-            _projects = scope.ServiceProvider.GetService<ProjectsStore>();
             _translates = scope.ServiceProvider.GetService<TranslateStore>();
             _project = project;
         }
@@ -111,11 +109,14 @@ namespace TranslateServer.Jobs
                 volumesHash.Add(msg.FileName);
                 var volume = new Volume(_project, msg.FileName);
                 await _volumes.Insert(volume);
-            }
 
-            Console.WriteLine("Recalc letters...");
-            await _volumes.RecalcLetters(_project.Code, _texts);
-            await _projects.RecalcLetters(_project.Code, _volumes);
+                for (int i = 0; i < records.Count; i++)
+                {
+                    var r = records[i];
+                    if (string.IsNullOrWhiteSpace(r.Text)) continue;
+                    await _texts.Insert(new TextResource(_project, volume, i, r.Text));
+                }
+            }
         }
 
         private async Task Cleanup()

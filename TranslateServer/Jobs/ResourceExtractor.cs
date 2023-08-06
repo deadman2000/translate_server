@@ -19,8 +19,10 @@ namespace TranslateServer.Jobs
         private readonly ILogger<ResourceExtractor> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly ProjectsStore _projects;
+        private readonly VolumesStore _volumes;
         private readonly TextsStore _texts;
         private readonly SearchService _search;
+        private readonly TranslateService _translateService;
         private readonly SCIService _sci;
 
         public static void Schedule(IServiceCollectionQuartzConfigurator q)
@@ -33,13 +35,24 @@ namespace TranslateServer.Jobs
             );
         }
 
-        public ResourceExtractor(ILogger<ResourceExtractor> logger, IServiceProvider serviceProvider, ProjectsStore projects, TextsStore texts, SearchService search, SCIService sci)
+        public ResourceExtractor(
+            ILogger<ResourceExtractor> logger,
+            IServiceProvider serviceProvider,
+            ProjectsStore projects,
+            VolumesStore volumes,
+            TextsStore texts,
+            SearchService search,
+            TranslateService translateService,
+            SCIService sci
+        )
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _projects = projects;
+            _volumes = volumes;
             _texts = texts;
             _search = search;
+            _translateService = translateService;
             _sci = sci;
         }
 
@@ -133,13 +146,25 @@ namespace TranslateServer.Jobs
             }
         }
 
-        private async Task CreateIndex(Project project)
+        private async Task CreateIndex(Project pr)
         {
-            _logger.LogInformation($"Indexing {project.Code}");
+            var project = pr.Code;
+            _logger.LogInformation($"Indexing {project}");
 
-            var items = await _texts.Query(t => t.Project == project.Code);
+            await _volumes.RecalcLetters(project, _texts);
+            await _projects.RecalcLetters(project, _volumes);
 
-            await _search.DeleteProject(project.Code);
+            var volumes = await _volumes.Query(v => v.Project == project);
+            foreach (var vol in volumes)
+            {
+                await _translateService.UpdateVolumeTotal(project, vol.Code);
+                await _translateService.UpdateVolumeProgress(project, vol.Code);
+            }
+            await _translateService.UpdateProjectTotal(project);
+            await _translateService.UpdateProjectProgress(project);
+
+            var items = await _texts.Query(t => t.Project == project);
+            await _search.DeleteProject(project);
             await _search.InsertTexts(items.ToList());
         }
     }

@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using SCI_Lib;
 using SCI_Lib.Resources;
 using System;
@@ -9,7 +8,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TranslateServer.Helpers;
@@ -27,7 +25,6 @@ namespace TranslateServer.Controllers
     public class ProjectsController : ApiController
     {
         private readonly ProjectsStore _project;
-        private readonly ServerConfig _config;
         private readonly TextsStore _texts;
         private readonly VolumesStore _volumes;
         private readonly TranslateStore _translates;
@@ -36,7 +33,7 @@ namespace TranslateServer.Controllers
         private readonly SCIService _sci;
         private readonly PatchesStore _patches;
 
-        public ProjectsController(IOptions<ServerConfig> opConfig,
+        public ProjectsController(
             ProjectsStore project,
             TextsStore texts,
             VolumesStore volumes,
@@ -48,7 +45,6 @@ namespace TranslateServer.Controllers
         )
         {
             _project = project;
-            _config = opConfig.Value;
             _texts = texts;
             _volumes = volumes;
             _translates = translates;
