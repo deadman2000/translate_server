@@ -27,15 +27,6 @@ namespace TranslateServer.Model
 
         public string Text { get; set; }
 
-        [BsonIgnoreIfNull]
-        public int? Talker { get; set; }
-
-        [BsonIgnoreIfNull]
-        public int? Verb { get; set; }
-
-        [BsonIgnoreIfNull]
-        public List<string> Noun { get; set; }
-
         public int Letters { get; set; }
 
         public void RecalcLetters()
