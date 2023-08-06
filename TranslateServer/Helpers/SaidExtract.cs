@@ -4,6 +4,7 @@ using SCI_Lib.Resources;
 using SCI_Lib;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 
 namespace TranslateServer.Helpers
 {
@@ -35,7 +36,7 @@ namespace TranslateServer.Helpers
 
             var res = _package.GetResource<ResScript>(resNum);
             var scr = res.GetScript() as Script;
-            var vars = scr.Get<LocalVariablesSection>()[0];
+            var vars = scr.Get<LocalVariablesSection>().First();
 
             var txtBegin = 1;
             var txtCount = 0;

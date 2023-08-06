@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
+using SCI_Lib.Resources.Scripts.Analyzer;
 using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.Resources.Scripts.Sections;
 using System;
@@ -35,6 +36,12 @@ namespace TranslateServer.Controllers
             _sci = sci;
         }
 
+        /// <summary>
+        /// Переносит перевод с одного проекта в другой
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        /// <returns></returns>
         [HttpPost("import/{from}/{to}")]
         public async Task<ActionResult> ImportTranslate(string from, string to)
         {
@@ -125,24 +132,6 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        [HttpPost("fix/{project}")]
-        public async Task<ActionResult> Fix(string project)
-        {
-            var translates = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null);
-            foreach (var byNum in translates.GroupBy(t => t.Volume + t.Number))
-            {
-                if (byNum.Count() > 1)
-                {
-                    var arr = byNum.ToArray();
-                    for (int i = 1; i < arr.Length; i++)
-                    {
-                        await _translate.DeleteOne(t => t.Id == arr[i].Id);
-                    }
-                }
-            }
-            return Ok();
-        }
-
         [HttpPost("said/{project}/{num}")]
         public async Task<ActionResult> ExtractSaids(string project, ushort num)
         {
@@ -174,7 +163,7 @@ namespace TranslateServer.Controllers
             var package = _sci.Load(project);
             var res = package.GetResource<ResScript>(num);
             var scr = res.GetScript() as Script;
-            var vars = scr.Get<LocalVariablesSection>()[0].Vars;
+            var vars = scr.Get<LocalVariablesSection>().First().Vars;
 
             for (int verbInd = 0; verbInd <= verbCnt; verbInd++)
             {
@@ -276,6 +265,30 @@ namespace TranslateServer.Controllers
                 }
             }
 
+            return Ok();
+        }
+
+        [HttpPost("setup_said/{project}")]
+        public async Task<ActionResult> SetupSaid(string project)
+        {
+            var package = _sci.Load(project);
+
+            var search = new TextUsageSearch(package);
+            var result = search.FindUsage();
+            foreach (var p in result)
+            {
+                IEnumerable<SaidExpression> saids = p.Saids;
+                foreach (var said in saids)
+                    said.Normalize();
+                saids = saids.Where(s => s.Label != "kiss/angel>");
+
+                var volume = $"text_{p.Script:D3}";
+                var descr = string.Join('\n', saids.Select(s => s.Label));
+
+                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == p.Index)
+                    .Set(t => t.Description, descr)
+                    .Execute();
+            }
             return Ok();
         }
     }
