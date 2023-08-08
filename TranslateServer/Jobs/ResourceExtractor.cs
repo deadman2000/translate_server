@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Quartz;
-using SCI_Lib.Resources.Scripts.Analyzer;
+using SCI_Lib.Analyzer;
 using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.SCI0;
 using System;
