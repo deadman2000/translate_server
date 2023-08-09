@@ -23,6 +23,7 @@ namespace TranslateServer.Controllers
     {
         private readonly ILogger<ToolsController> _logger;
         private readonly ProjectsStore _project;
+        private readonly VolumesStore _volumes;
         private readonly TranslateStore _translate;
         private readonly TextsStore _texts;
         private readonly SearchService _search;
@@ -31,12 +32,14 @@ namespace TranslateServer.Controllers
         public ToolsController(ILogger<ToolsController> logger,
             ProjectsStore project,
             TranslateStore translate,
+            VolumesStore volumes,
             TextsStore texts,
             SearchService search,
             SCIService sci)
         {
             _logger = logger;
             _project = project;
+            _volumes = volumes;
             _translate = translate;
             _texts = texts;
             _search = search;
@@ -323,6 +326,33 @@ namespace TranslateServer.Controllers
                         .Set(t => t.Text, newText)
                         .Set(t => t.IsTranslate, isTranslate)
                         .Execute();
+                }
+            }
+            return Ok();
+        }
+
+
+        [HttpPost("escape_tr")]
+        public async Task<ActionResult> EscapeTr()
+        {
+            var projects = await _project.All();
+            foreach (var pr in projects)
+            {
+                var volumes = await _volumes.Query(v => v.Project == pr.Code);
+                foreach (var vol in volumes)
+                {
+                    var texts = await _texts.Query(t => t.Project == pr.Code && t.Volume == vol.Code);
+                    foreach (var txt in texts)
+                    {
+                        if (txt.Text.Contains('$'))
+                        {
+                            var tr = await _translate.Get(t => t.Project == txt.Project && t.Volume == txt.Volume && t.Number == txt.Number && !t.Deleted && t.NextId == null);
+                            if (tr != null && !tr.Text.Contains('$'))
+                            {
+                                await Console.Out.WriteLineAsync($"{tr.Project}:{tr.Volume}:{tr.Number} {tr.Text}");
+                            }
+                        }
+                    }
                 }
             }
             return Ok();

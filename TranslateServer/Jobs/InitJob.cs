@@ -50,6 +50,7 @@ namespace TranslateServer.Jobs
             await EscapeStrings();
             await TranslateCheck();
             await Spellchecking();
+            _logger.LogInformation("Init complete");
         }
 
         private async Task EscapeStrings()
