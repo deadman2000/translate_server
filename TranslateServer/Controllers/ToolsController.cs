@@ -22,14 +22,21 @@ namespace TranslateServer.Controllers
     public class ToolsController : ControllerBase
     {
         private readonly ILogger<ToolsController> _logger;
+        private readonly ProjectsStore _project;
         private readonly TranslateStore _translate;
         private readonly TextsStore _texts;
         private readonly SearchService _search;
         private readonly SCIService _sci;
 
-        public ToolsController(ILogger<ToolsController> logger, TranslateStore translate, TextsStore texts, SearchService search, SCIService sci)
+        public ToolsController(ILogger<ToolsController> logger,
+            ProjectsStore project,
+            TranslateStore translate,
+            TextsStore texts,
+            SearchService search,
+            SCIService sci)
         {
             _logger = logger;
+            _project = project;
             _translate = translate;
             _texts = texts;
             _search = search;
@@ -288,6 +295,35 @@ namespace TranslateServer.Controllers
                 await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == p.Index)
                     .Set(t => t.Description, descr)
                     .Execute();
+            }
+            return Ok();
+        }
+
+        [HttpPost("escape_check")]
+        public async Task<ActionResult> EscapeCheck()
+        {
+            foreach (var tr in await _translate.Query(t => !t.Deleted))
+            {
+                if (tr.Text.Contains('$'))
+                {
+                    Console.WriteLine($"{tr.Project} {tr.Volume} {tr.Number}: {tr.Text}");
+                    if (tr.Text.Contains("$$"))
+                    {
+                        Console.WriteLine("$$ IGNORE");
+                        continue;
+                    }
+
+                    var newText = tr.Text.Replace("$", "$$");
+                    var isTranslate = tr.IsTranslate;
+                    var en = await _texts.Get(t => t.Project == tr.Project & t.Volume == tr.Volume && t.Number == tr.Number);
+                    if (en != null)
+                        isTranslate = en.Text != newText;
+
+                    await _translate.Update(t => t.Id == tr.Id)
+                        .Set(t => t.Text, newText)
+                        .Set(t => t.IsTranslate, isTranslate)
+                        .Execute();
+                }
             }
             return Ok();
         }

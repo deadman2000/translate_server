@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
+using SCI_Lib;
+using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,29 +53,41 @@ namespace TranslateServer.Controllers
         [HttpGet("full")]
         public Task Full(string project)
         {
-            return GenerateArchive(project, true, true);
+            return GenerateArchive(project, true);
         }
 
         [HttpGet("patch")]
         public Task Patch(string project)
         {
-            return GenerateArchive(project, false, true);
+            return GenerateArchive(project, false);
         }
 
-        [HttpGet("texts")]
-        public Task Texts(string project)
+        private async Task GenerateArchive(string project, bool full)
         {
-            return GenerateArchive(project, false, false);
-        }
-
-        private async Task GenerateArchive(string project, bool full, bool withPatches)
-        {
-            var package = _sci.Load(project);
-
+            var dir = _sci.Copy(project);
             var ms = new MemoryStream();
-            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            try
             {
                 HashSet<string> excludeSources = new();
+                using var archive = new ZipArchive(ms, ZipArchiveMode.Create, true);
+
+                //Применяем патчи
+                var patches = (await _patches.Query(p => p.Project == project && !p.Deleted)).ToList();
+                foreach (var p in patches)
+                {
+                    var patchPath = Path.Combine(dir, p.FileName);
+                    if (System.IO.File.Exists(patchPath))
+                        System.IO.File.Delete(patchPath);
+
+                    using FileStream fs = new(patchPath, FileMode.CreateNew, FileAccess.Write);
+                    await _patches.Download(p.FileId, fs);
+                }
+
+                // Читаем ресурсы
+                var package = SCIPackage.Load(dir);
+                var enc = package.GameEncoding;
+
+                // Патчим строковые ресурсы и добавляем в архив
                 {
                     var texts = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null);
                     foreach (var g in texts.GroupBy(t => t.Volume))
@@ -81,12 +95,18 @@ namespace TranslateServer.Controllers
                         var resourceName = g.Key.Replace('_', '.');
                         var res = package.GetResource(resourceName);
                         var strings = res.GetStrings();
+                        for (int i = 0; i < strings.Length; i++)
+                            strings[i] = enc.EscapeString(strings[i]);
+
                         var trStrings = (string[])strings.Clone();
 
                         foreach (var t in g)
                             trStrings[t.Number] = t.Text;
 
                         if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
+
+                        for (int i = 0; i < trStrings.Length; i++)
+                            trStrings[i] = enc.UnescapeString(trStrings[i]);
 
                         res.SetStrings(trStrings);
                         var bytes = res.GetPatch();
@@ -98,22 +118,19 @@ namespace TranslateServer.Controllers
                     }
                 }
 
-                if (withPatches)
+                // Добавляем в архив оставшиеся патчи
+                foreach (var p in patches)
                 {
-                    var patches = await _patches.Query(p => p.Project == project && !p.Deleted);
-                    foreach (var p in patches)
-                    {
-                        var entry = archive.CreateEntry(p.FileName);
-                        using var s = entry.Open();
-                        await _patches.Download(p.FileId, s);
+                    if (excludeSources.Contains(p.FileName.ToLower())) continue;
 
-                        excludeSources.Add(p.FileName.ToLower());
-                    }
+                    archive.CreateEntryFromFile(Path.Combine(dir, p.FileName), p.FileName);
+                    excludeSources.Add(p.FileName.ToLower());
                 }
 
+                // Добавляем в архив остальные ресурсы
                 if (full)
                 {
-                    var path = _sci.GetProjectPath(project);
+                    var path = package.GameDirectory;
                     var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
                     foreach (var f in files)
                     {
@@ -123,6 +140,10 @@ namespace TranslateServer.Controllers
                         archive.CreateEntryFromFile(f, relativePath);
                     }
                 }
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
             }
 
             string fileName = project;

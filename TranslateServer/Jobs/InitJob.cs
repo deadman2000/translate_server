@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Quartz;
+using SCI_Lib.Resources;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -24,8 +25,15 @@ namespace TranslateServer.Jobs
         private readonly TranslateStore _translate;
         private readonly YandexSpellcheck _spellcheck;
         private readonly TextsStore _texts;
+        private readonly SCIService _sci;
 
-        public InitJob(ILogger<InitJob> logger, UsersStore users, ProjectsStore projects, TranslateStore translate, YandexSpellcheck spellcheck, TextsStore texts)
+        public InitJob(ILogger<InitJob> logger,
+            UsersStore users,
+            ProjectsStore projects,
+            TranslateStore translate,
+            YandexSpellcheck spellcheck,
+            TextsStore texts,
+            SCIService sci)
         {
             _logger = logger;
             _users = users;
@@ -33,13 +41,110 @@ namespace TranslateServer.Jobs
             _translate = translate;
             _spellcheck = spellcheck;
             _texts = texts;
+            _sci = sci;
         }
 
         public async Task Execute(IJobExecutionContext context)
         {
             await UsersInit();
+            await EscapeStrings();
+            await TranslateCheck();
             await Spellchecking();
-            //await SpellFix();
+        }
+
+        private async Task EscapeStrings()
+        {
+            var projects = await _projects.All();
+            foreach (var proj in projects)
+                await Escape(proj.Code);
+        }
+
+
+        public async Task Escape(string project)
+        {
+            try
+            {
+                var package = _sci.Load(project);
+
+                foreach (var res in package.GetResources<ResText>())
+                    await Escape(project, res);
+                foreach (var res in package.GetResources<ResScript>())
+                    await Escape(project, res);
+                foreach (var res in package.GetResources<ResMessage>())
+                    await EscapeMsg(project, res);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Escape error");
+            }
+        }
+
+        private async Task Escape(string project, Resource res)
+        {
+            var enc = res.Package.GameEncoding;
+            var vol = Volume.FileNameToCode(res.FileName);
+            var texts = await _texts.Query(t => t.Project == project && t.Volume == vol);
+            var dict = texts.ToDictionary(t => t.Number, t => t);
+
+            var strings = res.GetStrings();
+            for (int i = 0; i < strings.Length; i++)
+            {
+                if (!dict.TryGetValue(i, out var txt)) continue;
+
+                var esc = enc.EscapeString(strings[i]);
+                if (txt.Text != esc)
+                {
+                    _logger.LogWarning($"Escaped {project} {res.FileName} {i}");
+                    await _texts.Update(t => t.Id == txt.Id)
+                        .Set(t => t.Text, esc)
+                        .Execute();
+                }
+            }
+        }
+
+        private async Task EscapeMsg(string project, ResMessage res)
+        {
+            var enc = res.Package.GameEncoding;
+            var vol = Volume.FileNameToCode(res.FileName);
+            var texts = await _texts.Query(t => t.Project == project && t.Volume == vol);
+            var dict = texts.ToDictionary(t => t.Number, t => t);
+
+            var records = res.GetMessages();
+
+            for (int i = 0; i < records.Count; i++)
+            {
+                if (!dict.TryGetValue(i, out var txt)) continue;
+
+                var esc = enc.EscapeString(records[i].Text);
+                if (txt.Text != esc)
+                {
+                    _logger.LogWarning($"Escaped {project} {res.FileName} {i}");
+                    await _texts.Update(t => t.Id == txt.Id)
+                        .Set(t => t.Text, esc)
+                        .Execute();
+                }
+            }
+        }
+
+        private async Task TranslateCheck()
+        {
+            while (true)
+            {
+                var translates = _translate.Queryable()
+                    .Where(t => t.IsTranslate == null)
+                    .Take(1000)
+                    .ToList();
+
+                if (!translates.Any()) break;
+
+                foreach (var tr in translates)
+                {
+                    var text = await _texts.Get(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number);
+                    await _translate.Update(t => t.Id == tr.Id)
+                        .Set(t => t.IsTranslate, text.Text != tr.Text)
+                        .Execute();
+                }
+            }
         }
 
         private async Task UsersInit()
@@ -59,13 +164,12 @@ namespace TranslateServer.Jobs
 
         private async Task Spellchecking()
         {
-            // TODO Ignore untranslated
-            /*_logger.LogInformation("Spell checking...");
+            _logger.LogInformation("Spell checking...");
 
             var projects = (await _projects.All()).Select(p => p.Code);
             foreach (var proj in projects)
             {
-                var translates = (await _translate.Query(t => t.Project == proj && !t.Deleted && t.NextId == null && t.Spellcheck == null)).ToArray();
+                var translates = (await _translate.Query(t => t.Project == proj && !t.Deleted && t.NextId == null && t.Spellcheck == null && t.IsTranslate == true)).ToArray();
                 if (translates.Length == 0) continue;
 
                 var texts = translates.Select(t => t.Text).ToArray();
@@ -91,26 +195,7 @@ namespace TranslateServer.Jobs
                 }
             }
 
-            _logger.LogInformation("Spell checking done");*/
-        }
-
-        private async Task SpellFix()
-        {
-            _logger.LogInformation("Spell fix...");
-
-            var checks = _translate.Queryable().Where(t => !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Length > 0);
-            foreach (var tr in checks)
-            {
-                var txt = await _texts.Get(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number);
-                if (txt.Text == tr.Text)
-                {
-                    await _translate.Update(t => t.Id == tr.Id)
-                        .Set(t => t.Spellcheck, Array.Empty<SpellResult>())
-                        .Execute();
-                }
-            }
-
-            _logger.LogInformation("Spell fix done");
+            _logger.LogInformation("Spell checking done");
         }
     }
 }

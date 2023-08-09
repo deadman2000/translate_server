@@ -139,7 +139,8 @@ namespace TranslateServer.Services
                 Editor = author,
                 DateCreate = DateTime.UtcNow,
                 Letters = txt.Letters,
-                Spellcheck = spellcheck
+                IsTranslate = txt.Text != text,
+                Spellcheck = spellcheck,
             };
 
             if (prevTranslateId != null)

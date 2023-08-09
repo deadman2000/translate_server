@@ -40,17 +40,13 @@ namespace TranslateServer.Model
 
         public SpellResult[] Spellcheck { get; set; }
 
+        public bool? IsTranslate { get; set; }
+
         class TextTranslateComparer : IEqualityComparer<TextTranslate>
         {
-            public bool Equals(TextTranslate x, TextTranslate y)
-            {
-                return x.Project == y.Project && x.Volume == y.Volume && x.Number == y.Number;
-            }
+            public bool Equals(TextTranslate x, TextTranslate y) => x.Project == y.Project && x.Volume == y.Volume && x.Number == y.Number;
 
-            public int GetHashCode([DisallowNull] TextTranslate obj)
-            {
-                return obj.Project.GetHashCode() ^ obj.Volume.GetHashCode() ^ obj.Number;
-            }
+            public int GetHashCode([DisallowNull] TextTranslate obj) => obj.Project.GetHashCode() ^ obj.Volume.GetHashCode() ^ obj.Number;
         }
     }
 }

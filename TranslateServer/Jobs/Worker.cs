@@ -32,6 +32,7 @@ namespace TranslateServer.Jobs
         public async Task Extract()
         {
             _package = _sci.Load(_project.Code);
+            var enc = _package.GameEncoding;
             var now = DateTime.UtcNow;
 
             await Cleanup();
@@ -72,7 +73,7 @@ namespace TranslateServer.Jobs
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    var val = strings[i];
+                    var val = enc.EscapeString(strings[i]);
                     if (!string.IsNullOrWhiteSpace(val))
                     {
                         var txt = new TextResource(_project, volume, i, val)
@@ -89,6 +90,7 @@ namespace TranslateServer.Jobs
                             Project = _project.Code,
                             Volume = volume.Code,
                             Number = i,
+                            IsTranslate = false,
                             Author = "system",
                             Editor = "system",
                             DateCreate = now,
