@@ -47,10 +47,16 @@ namespace TranslateServer.Jobs
         public async Task Execute(IJobExecutionContext context)
         {
             await UsersInit();
-            await EscapeStrings();
-            await TranslateCheck();
+            //await EscapeStrings();
+            //await TranslateCheck();
             await Spellchecking();
+            await UpdateNullEngine();
             _logger.LogInformation("Init complete");
+        }
+
+        private Task UpdateNullEngine()
+        {
+            return _projects.Update(p => p.Engine == null).Set(p => p.Engine, "sci").ExecuteMany();
         }
 
         private async Task EscapeStrings()

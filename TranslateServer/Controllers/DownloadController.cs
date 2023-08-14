@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AGSUnpacker.Lib.Translation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using SCI_Lib;
-using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TranslateServer.Services;
 using TranslateServer.Store;
@@ -20,12 +21,21 @@ namespace TranslateServer.Controllers
         private readonly SCIService _sci;
         private readonly TranslateStore _translate;
         private readonly PatchesStore _patches;
+        private readonly ProjectsStore _projects;
+        private readonly VolumesStore _volumes;
 
-        public DownloadController(SCIService sci, TranslateStore translate, PatchesStore patches)
+        public DownloadController(SCIService sci,
+            TranslateStore translate,
+            PatchesStore patches,
+            ProjectsStore projects,
+            VolumesStore volumes
+        )
         {
             _sci = sci;
             _translate = translate;
             _patches = patches;
+            _projects = projects;
+            _volumes = volumes;
         }
 
         [HttpGet("source")]
@@ -53,17 +63,61 @@ namespace TranslateServer.Controllers
         [HttpGet("full")]
         public Task Full(string project)
         {
-            return GenerateArchive(project, true);
+            return GenerateSCIZip(project, true);
         }
 
         [HttpGet("patch")]
-        public Task Patch(string project)
+        public async Task Patch(string project)
         {
-            return GenerateArchive(project, false);
+            var proj = await _projects.GetProject(project);
+
+            if (proj.Engine == "ags")
+                await GenerateAGSZip(project, false);
+            else
+                await GenerateSCIZip(project, false);
         }
 
-        private async Task GenerateArchive(string project, bool full)
+        private async Task GenerateAGSZip(string project, bool full)
         {
+            var path = _sci.GetProjectPath(project);
+
+            var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                var volumes = await _volumes.Query(v => v.Project == project);
+
+                foreach (var vol in volumes)
+                {
+                    AGSTranslation translation = new();
+                    translation.Decompile(Path.Combine(path, vol.Name, "English.tra"));
+
+                    var texts = await _translate.Query(t => t.Project == project && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+                    foreach (var t in texts)
+                        translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+
+                    var outPath = Path.Combine(Path.GetTempPath(), Path.GetTempFileName());
+                    translation.TranslateEncoding = Encoding.GetEncoding(1251);
+                    translation.Compile(outPath);
+
+                    archive.CreateEntryFromFile(outPath, $"{vol.Name}/Russian.tra");
+
+                    System.IO.File.Delete(outPath);
+                }
+            }
+
+            string fileName = project;
+            if (!full) fileName += "_patch";
+
+            ms.Seek(0, SeekOrigin.Begin);
+            Response.StatusCode = 200;
+            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{fileName}.zip\"");
+            Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
+            await ms.CopyToAsync(Response.Body);
+        }
+
+        private async Task GenerateSCIZip(string project, bool full)
+        {
+
             var dir = _sci.Copy(project);
             var ms = new MemoryStream();
             try

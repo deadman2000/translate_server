@@ -9,6 +9,8 @@ namespace TranslateServer.Model
 
         public string Code { get; set; }
 
+        public string Engine { get; set; }
+
         public ProjectStatus Status { get; set; }
 
         [BsonIgnoreIfNull]

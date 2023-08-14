@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AGSUnpacker.Lib.Translation;
+using Microsoft.Extensions.DependencyInjection;
 using SCI_Lib.Resources;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model;
@@ -31,11 +33,19 @@ namespace TranslateServer.Jobs
 
         public async Task Extract()
         {
+            await Cleanup();
+
+            if (_project.Engine == "ags")
+                await ExtractAGS();
+            else
+                await ExtractSCI();
+        }
+
+        public async Task ExtractSCI()
+        {
             _package = _sci.Load(_project.Code);
             var enc = _package.GameEncoding;
             var now = DateTime.UtcNow;
-
-            await Cleanup();
 
             HashSet<string> volumesHash = new();
             foreach (var txt in _package.GetResources<ResText>())
@@ -117,6 +127,34 @@ namespace TranslateServer.Jobs
                     var r = records[i];
                     if (string.IsNullOrWhiteSpace(r.Text)) continue;
                     await _texts.Insert(new TextResource(_project, volume, i, r.Text));
+                }
+            }
+        }
+
+        private async Task ExtractAGS()
+        {
+            var path = _sci.GetProjectPath(_project.Code);
+            var traFiles = Directory.GetFiles(path, "*.tra", SearchOption.AllDirectories);
+
+            foreach (var filePath in traFiles)
+            {
+                AGSTranslation translation = new();
+                translation.Decompile(filePath);
+
+                var dir = Path.GetDirectoryName(filePath);
+                var dirInfo = new DirectoryInfo(dir);
+
+                var volume = new Volume(_project, dirInfo.Name);
+                await _volumes.Insert(volume);
+
+                for (int i = 0; i < translation.OriginalLines.Count; i++)
+                {
+                    var en = translation.TranslatedLines[i].Replace("[", "\n");
+                    var fr = translation.OriginalLines[i].Replace("[", "\n");
+                    await _texts.Insert(new TextResource(_project, volume, i, en)
+                    {
+                        Description = fr
+                    });
                 }
             }
         }

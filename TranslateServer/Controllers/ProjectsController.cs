@@ -66,6 +66,8 @@ namespace TranslateServer.Controllers
             public string Name { get; set; }
 
             public string Code { get; set; }
+
+            public string Engine { get; set; }
         }
 
         [AuthAdmin]
@@ -76,6 +78,7 @@ namespace TranslateServer.Controllers
             {
                 Name = request.Name,
                 Code = request.Code,
+                Engine = request.Engine ?? "sci",
             };
 
             await _project.Insert(project);
@@ -328,15 +331,14 @@ namespace TranslateServer.Controllers
             using var archive = new ZipArchive(ms);
 
             var mapEntry = archive.Entries.FirstOrDefault(e => e.Name.Equals("RESOURCE.MAP", StringComparison.OrdinalIgnoreCase));
-            if (mapEntry == null)
-                throw new Exception("RESOURCE.MAP file not found");
+            //if (mapEntry == null) throw new Exception("RESOURCE.MAP file not found");
 
             if (Directory.Exists(targetDir))
                 Directory.Delete(targetDir, true);
 
             Directory.CreateDirectory(targetDir);
 
-            if (mapEntry.FullName.Length != mapEntry.Name.Length)
+            if (mapEntry != null && mapEntry.FullName.Length != mapEntry.Name.Length)
             {
                 var dir = mapEntry.FullName.Substring(0, mapEntry.FullName.Length - mapEntry.Name.Length);
                 archive.ExtractSubDir(targetDir, dir);

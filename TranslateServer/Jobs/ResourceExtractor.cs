@@ -98,7 +98,9 @@ namespace TranslateServer.Jobs
                 try
                 {
                     await CreateIndex(project);
-                    await PrintUsage(project);
+
+                    if (project.Engine == "sci")
+                        await PrintUsage(project);
 
                     _logger.LogInformation($"Project {project.Code} resources extracted");
                     await _projects.Update(p => p.Id == project.Id)

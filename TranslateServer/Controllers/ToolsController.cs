@@ -284,7 +284,12 @@ namespace TranslateServer.Controllers
             var package = _sci.Load(project);
 
             var search = new TextUsageSearch(package);
-            var result = search.FindUsage();
+
+            List<string> proc = new();
+            if (project == "camelot")
+                proc.Add("proc_14");
+
+            var result = search.FindUsage(proc);
             foreach (var p in result)
             {
                 IEnumerable<SaidExpression> saids = p.Saids;
