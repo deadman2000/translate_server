@@ -146,8 +146,7 @@ namespace TranslateServer.Jobs
             var matchRate = m.Score / txt.MaxScore;
 
             var reference = await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
-            if (reference == null)
-                reference = await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
+            reference ??= await _videoReference.Create(vt.Project, m.Volume, m.Number, vt.VideoId);
             if (reference == null)
             {
                 _logger.LogError($"Video reference null {vt.Project} {m.Volume} {m.Number} {vt.VideoId}");

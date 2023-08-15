@@ -51,7 +51,7 @@ namespace TranslateServer.Controllers
                 );
 
             // References
-            var refs = await _references.Query(r => r.Project == project && r.Volume == volume);
+            var refs = await _references.Query(r => r.Project == project && r.Volume == volume && r.Rate != null);
             var rdict = refs.GroupBy(r => r.Number).ToDictionary(r => r.Key, g => g.Select(r => new
             {
                 r.VideoId,

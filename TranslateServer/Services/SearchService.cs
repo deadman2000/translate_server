@@ -31,7 +31,7 @@ namespace TranslateServer.Services
                     Project = t.Project,
                     Volume = t.Volume,
                     Number = t.Number,
-                    Text = t.Text,
+                    Text = t.Text.Replace('\n', ' '),
                 }
             ), SOURCE_TEXT_INDEX);
         }
@@ -45,7 +45,7 @@ namespace TranslateServer.Services
                     Project = t.Project,
                     Volume = t.Volume,
                     Number = t.Number,
-                    Text = t.Text,
+                    Text = t.Text.Replace('\n', ' '),
                 }
             ), TRANSLATE_INDEX);
         }
@@ -58,7 +58,7 @@ namespace TranslateServer.Services
                 Project = t.Project,
                 Volume = t.Volume,
                 Number = t.Number,
-                Text = t.Text,
+                Text = t.Text.Replace('\n', ' '),
             };
             await _client.DeleteByQueryAsync<TextIndex>(q => q.Query(q =>
                 //q.Term(f => f.Project, t.Project) & q.Term(f => f.Volume, t.Volume) & q.Term(f => f.Number, t.Number)
@@ -76,6 +76,7 @@ namespace TranslateServer.Services
 
         public async Task<IEnumerable<SearchResultItem>> Search(string query, bool inSource, bool inTranslated, int? skip, int size)
         {
+            query = query.Replace('\n', ' ');
             List<string> indexes = new();
             if (inSource) indexes.Add(SOURCE_TEXT_INDEX);
             if (inTranslated) indexes.Add(TRANSLATE_INDEX);
@@ -120,6 +121,8 @@ namespace TranslateServer.Services
         public async Task<IEnumerable<SearchResultItem>> SearchInProject(string project, string query, bool inSource, bool inTranslated, int? skip, int size)
         {
             if (project == null) return await Search(query, inSource, inTranslated, skip, size);
+
+            query = query.Replace('\n', ' ');
 
             List<string> indexes = new();
             if (inSource) indexes.Add(SOURCE_TEXT_INDEX);
@@ -177,6 +180,8 @@ namespace TranslateServer.Services
 
         public async Task<IEnumerable<MatchResult>> GetMatch(string project, string text)
         {
+            text = text.Replace('\n', ' ');
+
             var resp = await _client.SearchAsync<TextIndex>(s => s
                 .Index(new string[] { SOURCE_TEXT_INDEX })
                 .Query(q => q
@@ -204,13 +209,14 @@ namespace TranslateServer.Services
 
         public async Task<IEnumerable<MatchResult>> GetMatch(string project, string volume, string text)
         {
+            text = text.Replace('\n', ' ');
             var resp = await _client.SearchAsync<TextIndex>(s => s
                 .Index(new string[] { SOURCE_TEXT_INDEX })
                 .Query(q => q
                     .Bool(b => b
                         .Filter(
                             f => f.Term(f => f.Project, project),
-                            f => f.Term(f => f.Volume, volume)
+                            f => f.MatchPhrase(f => f.Field(f => f.Volume).Query(volume))
                         )
                         .Must(m => m.Match(m => m
                             .Field(f => f.Text).Query(text)
@@ -238,12 +244,12 @@ namespace TranslateServer.Services
                     .Bool(b => b
                         .Filter(
                             f => f.Term(f => f.Project, text.Project),
-                            f => f.Term(f => f.Volume, text.Volume),
+                            f => f.MatchPhrase(f => f.Field(f => f.Volume).Query(text.Volume)),
                             f => f.Term(f => f.Number, text.Number)
                         )
                         .Must(m => m
                             .Match(m => m
-                                .Field(f => f.Text).Query(text.Text)
+                                .Field(f => f.Text).Query(text.Text.Replace('\n', ' '))
                                 .Fuzziness(Fuzziness.Auto)
                             )
                         )
