@@ -16,7 +16,7 @@ using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
-    //[AuthAdmin]
+    [AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
     public class ToolsController : ControllerBase

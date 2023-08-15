@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using Nest;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -20,8 +22,13 @@ namespace TranslateServer.Controllers
         private readonly TranslateStore _translates;
         private readonly TextsStore _texts;
 
-        public SearchController(SearchService search, TranslateStore translates, TextsStore texts)
+        public SearchController(SearchService search,
+            TranslateStore translates,
+            TextsStore texts,
+            ProjectsStore projects
+        )
         {
+            _projects = projects;
             _search = search;
             _translates = translates;
             _texts = texts;
@@ -42,6 +49,12 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Search(SearchRequest request)
         {
+            if (IsSharedUser)
+            {
+                if (request.Project == null) return EmptySearchResult(request.Query);
+                if (!await HasAccessToProject(request.Project)) return EmptySearchResult(request.Query);
+            }
+
             IEnumerable<SearchResultItem> result;
             if (request.Regex)
                 result = await RegexSearch(request);
@@ -52,6 +65,15 @@ namespace TranslateServer.Controllers
             {
                 request.Query,
                 result
+            });
+        }
+
+        private ActionResult EmptySearchResult(string query)
+        {
+            return Ok(new
+            {
+                query,
+                result = Array.Empty<object>()
             });
         }
 

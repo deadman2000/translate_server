@@ -1,4 +1,6 @@
 ﻿using MongoDB.Driver;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Helpers;
@@ -42,6 +44,11 @@ namespace TranslateServer.Store
                 .Set(p => p.Letters, res.Total)
                 .Set(p => p.Texts, res.Count)
                 .Execute();
+        }
+
+        public Task<List<Project>> Shared()
+        {
+            return Query(p => p.Shared == true);
         }
     }
 }

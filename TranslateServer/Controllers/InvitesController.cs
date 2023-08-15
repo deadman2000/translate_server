@@ -32,13 +32,19 @@ namespace TranslateServer.Controllers
             return Ok(invites);
         }
 
+        public class CreateInviteRequest
+        {
+            public string Role { get; set; }
+        }
+
         [AuthAdmin]
         [HttpPost]
-        public async Task<ActionResult> Create()
+        public async Task<ActionResult> Create(CreateInviteRequest request)
         {
             var invite = new Invite
             {
                 Code = Guid.NewGuid().ToString(),
+                Role = request.Role,
                 DateCreate = DateTime.UtcNow,
                 UserCreated = UserLogin
             };
@@ -85,7 +91,7 @@ namespace TranslateServer.Controllers
             user = new UserDocument
             {
                 Login = request.Login,
-                Role = UserDocument.EDITOR
+                Role = invite.Role,
             };
             user.SetPassword(request.Password);
             await _users.Insert(user);

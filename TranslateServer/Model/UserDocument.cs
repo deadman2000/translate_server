@@ -33,5 +33,6 @@ namespace TranslateServer.Model
 
         public const string ADMIN = "Admin";
         public const string EDITOR = "Editor";
+        public const string SHARED = "Shared";
     }
 }

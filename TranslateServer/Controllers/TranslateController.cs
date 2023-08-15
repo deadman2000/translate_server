@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using Nest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,13 +24,19 @@ namespace TranslateServer.Controllers
         private readonly SearchService _search;
         private readonly CommentsStore _comments;
 
-        public TranslateController(TranslateService translateService, TranslateStore translate, TextsStore texts, SearchService search, CommentsStore comments)
+        public TranslateController(TranslateService translateService,
+            TranslateStore translate,
+            TextsStore texts,
+            SearchService search,
+            CommentsStore comments,
+            ProjectsStore projects)
         {
             _translateService = translateService;
             _translate = translate;
             _texts = texts;
             _search = search;
             _comments = comments;
+            _projects = projects;
         }
 
         public class SubmitRequest
@@ -48,6 +55,8 @@ namespace TranslateServer.Controllers
         [HttpPost]
         public async Task<ActionResult> Submit([FromBody] SubmitRequest request)
         {
+            if (!await HasAccessToProject(request.Project)) return NotFound();
+
             var translate = await _translateService.Submit(request.Project, request.Volume, request.Number, request.Text, UserLogin, false, request.TranslateId);
             if (translate == null) return NotFound();
 
@@ -121,6 +130,8 @@ namespace TranslateServer.Controllers
         {
             var translate = await _translate.GetById(id);
             if (translate == null) return NotFound();
+
+            if (!await HasAccessToProject(translate.Project)) return NotFound();
 
             var all = await _translate.Query(t => t.Project == translate.Project && t.Volume == translate.Volume && t.Number == translate.Number && t.NextId != null);
 

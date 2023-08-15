@@ -24,7 +24,6 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class ProjectsController : ApiController
     {
-        private readonly ProjectsStore _project;
         private readonly TextsStore _texts;
         private readonly VolumesStore _volumes;
         private readonly TranslateStore _translates;
@@ -44,7 +43,7 @@ namespace TranslateServer.Controllers
             PatchesStore patches
         )
         {
-            _project = project;
+            _projects = project;
             _texts = texts;
             _volumes = volumes;
             _translates = translates;
@@ -57,8 +56,10 @@ namespace TranslateServer.Controllers
         [HttpGet]
         public async Task<ActionResult> GetList()
         {
-            var list = await _project.All();
-            return Ok(list);
+            if (IsSharedUser)
+                return Ok(await _projects.Shared());
+
+            return Ok(await _projects.All());
         }
 
         public class CreateProjectRequest
@@ -81,7 +82,7 @@ namespace TranslateServer.Controllers
                 Engine = request.Engine ?? "sci",
             };
 
-            await _project.Insert(project);
+            await _projects.Insert(project);
 
             return Ok(project);
         }
@@ -89,7 +90,11 @@ namespace TranslateServer.Controllers
         [HttpGet("{project}")]
         public async Task<ActionResult> GetProject(string project)
         {
-            return Ok(await _project.GetProject(project));
+            if (!await HasAccessToProject(project)) return NotFound();
+
+            var proj = await _projects.GetProject(project);
+            if (proj == null) return NotFound();
+            return Ok(proj);
         }
 
         [AuthAdmin]
@@ -106,7 +111,7 @@ namespace TranslateServer.Controllers
             {
                 await ExtractToDir(file, targetDir);
 
-                await _project.Update(p => p.Code == project && p.Status == ProjectStatus.New)
+                await _projects.Update(p => p.Code == project && p.Status == ProjectStatus.New)
                     .Set(p => p.Status, ProjectStatus.TextExtract)
                     .Execute();
             }
@@ -145,7 +150,7 @@ namespace TranslateServer.Controllers
             if (changed)
             {
                 await _volumes.RecalcLetters(project, _texts);
-                await _project.RecalcLetters(project, _volumes);
+                await _projects.RecalcLetters(project, _volumes);
             }
 
             var volumes = await _volumes.Query(v => v.Project == project);
@@ -192,7 +197,7 @@ namespace TranslateServer.Controllers
         {
             await _volumes.Delete(v => v.Project == project);
             await _texts.Delete(v => v.Project == project);
-            await _project.DeleteOne(p => p.Code == project);
+            await _projects.DeleteOne(p => p.Code == project);
             await _translates.Delete(t => t.Project == project);
             _sci.DeletePackage(project);
             foreach (var p in await _patches.Query(p => p.Project == project))
@@ -203,6 +208,7 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
+        [AuthAdmin]
         [HttpGet("{project}/byuser/{user}")]
         public async Task<ActionResult> ByUser(string project, string user)
         {
@@ -347,6 +353,21 @@ namespace TranslateServer.Controllers
             {
                 archive.ExtractToDirectory(targetDir);
             }
+        }
+
+        public class ShareRequest
+        {
+            public bool Share { get; set; }
+        }
+
+        [AuthAdmin]
+        [HttpPost("{project}/share")]
+        public async Task<ActionResult> Share(string project, ShareRequest request)
+        {
+            await _projects.Update(p => p.Code == project)
+                .Set(p => p.Shared, request.Share)
+                .Execute();
+            return Ok();
         }
     }
 }

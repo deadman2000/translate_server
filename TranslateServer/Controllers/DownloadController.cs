@@ -21,7 +21,6 @@ namespace TranslateServer.Controllers
         private readonly SCIService _sci;
         private readonly TranslateStore _translate;
         private readonly PatchesStore _patches;
-        private readonly ProjectsStore _projects;
         private readonly VolumesStore _volumes;
 
         public DownloadController(SCIService sci,

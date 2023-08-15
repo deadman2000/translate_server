@@ -5,14 +5,19 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using TranslateServer.Model;
+using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
 {
     public class ApiController : ControllerBase
     {
+        protected ProjectsStore _projects;
+
         protected string UserLogin => User.Identity.Name;
 
         protected bool IsAdmin => User.IsInRole(UserDocument.ADMIN);
+
+        protected bool IsSharedUser => User.IsInRole(UserDocument.SHARED);
 
         protected ActionResult ApiBadRequest(string message)
         {
@@ -56,5 +61,13 @@ namespace TranslateServer.Controllers
                 authProperties);
         }
 
+        protected async Task<bool> HasAccessToProject(string project)
+        {
+            if (!IsSharedUser) return true;
+
+            var proj = await _projects.Get(p => p.Code == project);
+            if (proj == null) return false;
+            return proj.Shared;
+        }
     }
 }

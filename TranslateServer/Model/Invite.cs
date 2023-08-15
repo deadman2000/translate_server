@@ -6,6 +6,8 @@ namespace TranslateServer.Model
     {
         public string Code { get; set; }
 
+        public string Role { get;  set; }
+        
         public string UserCreated { get; set; }
 
         public DateTime DateCreate { get; set; }

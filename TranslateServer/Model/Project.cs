@@ -29,6 +29,8 @@ namespace TranslateServer.Model
         public int ApprovedTexts { get; set; }
 
         public int ApprovedLetters { get; set; }
+
+        public bool Shared { get; set; }
     }
 
     public enum ProjectStatus
