@@ -19,14 +19,14 @@ namespace TranslateServer.Store
             gridFS = new GridFSBucket(Collection.Database);
         }
 
-        public async Task<Patch> Save(string project, IFormFile file, string user)
+        public async Task<Patch> Save(string project, string fileName, Stream stream, string user)
         {
-            var id = await gridFS.UploadFromStreamAsync(file.FileName, file.OpenReadStream());
+            var id = await gridFS.UploadFromStreamAsync(fileName, stream);
 
             var patch = new Patch
             {
                 Project = project,
-                FileName = file.FileName.ToLower(),
+                FileName = fileName.ToLower(),
                 FileId = id.ToString(),
                 User = user,
                 UploadDate = DateTime.UtcNow
@@ -53,10 +53,10 @@ namespace TranslateServer.Store
             return patch;
         }
 
-        public async Task Update(Patch patch, IFormFile file, string user)
+        public async Task Update(Patch patch, string fileName, Stream stream, string user)
         {
             await gridFS.DeleteAsync(new ObjectId(patch.FileId));
-            var id = await gridFS.UploadFromStreamAsync(file.FileName, file.OpenReadStream());
+            var id = await gridFS.UploadFromStreamAsync(fileName, stream);
             patch.FileId = id.ToString();
             await Update(p => p.Id == patch.Id)
                 .Set(p => p.FileId, patch.FileId)

@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
+using TranslateServer.Model;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
@@ -31,17 +34,41 @@ namespace TranslateServer.Controllers
                 .ThenBy(p => p.Number));
         }
 
+        private async Task<Patch> SavePatch(string project, string fileName, Stream stream)
+        {
+            var patch = await _patches.Get(p => p.Project == project && p.FileName == fileName.ToLower() && !p.Deleted);
+            if (patch == null)
+                return await _patches.Save(project, fileName, stream, UserLogin);
+
+            await _patches.Update(patch, fileName, stream, UserLogin);
+            return patch;
+        }
+
         [RequestFormLimits(ValueLengthLimit = 16 * 1024 * 1024, MultipartBodyLengthLimit = 16 * 1024 * 1024)]
         [DisableRequestSizeLimit]
         [HttpPost]
         public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
-            var patch = await _patches.Get(p => p.Project == project && p.FileName == file.FileName.ToLower() && !p.Deleted);
-            if (patch != null)
-                await _patches.Update(patch, file, UserLogin);
-            else
-                patch = await _patches.Save(project, file, UserLogin);
+            var patch = await SavePatch(project, file.FileName, file.OpenReadStream());
             return Ok(patch);
+        }
+
+        [RequestFormLimits(ValueLengthLimit = 16 * 1024 * 1024, MultipartBodyLengthLimit = 16 * 1024 * 1024)]
+        [DisableRequestSizeLimit]
+        [HttpPost("zip")]
+        public async Task<ActionResult> UploadZip(string project, [FromForm] IFormFile file)
+        {
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+
+            using var archive = new ZipArchive(ms);
+            foreach (var ent in archive.Entries)
+            {
+                if (ent.Length > 0)
+                    await SavePatch(project, ent.FullName, ent.Open());
+            }
+
+            return Ok();
         }
 
         [HttpGet("{id}")]

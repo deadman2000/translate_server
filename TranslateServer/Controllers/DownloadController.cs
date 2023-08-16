@@ -94,13 +94,23 @@ namespace TranslateServer.Controllers
                     foreach (var t in texts)
                         translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
 
-                    var outPath = Path.Combine(Path.GetTempPath(), Path.GetTempFileName());
+                    var entry = archive.CreateEntry($"{vol.Name}/Russian.tra");
+
+                    var msTRA = new MemoryStream();
                     translation.TranslateEncoding = Encoding.GetEncoding(1251);
-                    translation.Compile(outPath);
+                    translation.Compile(msTRA);
+                    msTRA.Seek(0, SeekOrigin.Begin);
 
-                    archive.CreateEntryFromFile(outPath, $"{vol.Name}/Russian.tra");
+                    using var s = entry.Open();
+                    msTRA.CopyTo(s);
+                }
 
-                    System.IO.File.Delete(outPath);
+                var patches = (await _patches.Query(p => p.Project == project && !p.Deleted)).ToList();
+                foreach (var p in patches)
+                {
+                    var entry = archive.CreateEntry(p.FileName);
+                    using var s = entry.Open();
+                    await _patches.Download(p.FileId, s);
                 }
             }
 
