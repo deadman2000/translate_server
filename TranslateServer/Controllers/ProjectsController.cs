@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SCI_Lib;
 using SCI_Lib.Resources;
 using System;
@@ -24,6 +25,7 @@ namespace TranslateServer.Controllers
     [ApiController]
     public class ProjectsController : ApiController
     {
+        private readonly ILogger<ProjectsController> _logger;
         private readonly TextsStore _texts;
         private readonly VolumesStore _volumes;
         private readonly TranslateStore _translates;
@@ -33,6 +35,7 @@ namespace TranslateServer.Controllers
         private readonly PatchesStore _patches;
 
         public ProjectsController(
+            ILogger<ProjectsController> logger,
             ProjectsStore project,
             TextsStore texts,
             VolumesStore volumes,
@@ -43,6 +46,7 @@ namespace TranslateServer.Controllers
             PatchesStore patches
         )
         {
+            _logger = logger;
             _projects = project;
             _texts = texts;
             _volumes = volumes;
@@ -127,7 +131,7 @@ namespace TranslateServer.Controllers
         [HttpPost("{project}/reindex")]
         public async Task<ActionResult> Reindex(string project)
         {
-            await Console.Out.WriteLineAsync($"Reindex {project}");
+            _logger.LogInformation($"Reindex {project}");
             var textsList = await _texts.Query(t => t.Project == project);
             var tr = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
 
@@ -167,7 +171,7 @@ namespace TranslateServer.Controllers
             if (tr.Any())
                 await _elastic.InsertTranslates(tr.ToList());
 
-            await Console.Out.WriteLineAsync($"Reindex end {project}");
+            _logger.LogInformation($"Reindex end {project}");
             return Ok();
         }
 
@@ -300,7 +304,7 @@ namespace TranslateServer.Controllers
                         .ExecuteMany();
                 }
 
-                Console.WriteLine("Patches");
+                _logger.LogInformation("Import patches");
                 foreach (var p in await _patches.Query(p => p.Project == project))
                     await _patches.FullDelete(p.Id);
 
@@ -312,14 +316,21 @@ namespace TranslateServer.Controllers
 
                 foreach (var res in otherRes)
                 {
-                    var cont = res.GetContent();
-                    var src = srcPack.GetResource(res.Type, res.Number);
-                    var srcCont = src.GetContent();
-                    if (!Enumerable.SequenceEqual(cont, srcCont))
-                        await _patches.Save(project, cont, res.FileName, "import");
+                    try
+                    {
+                        var cont = res.GetContent();
+                        var src = srcPack.GetResource(res.Type, res.Number);
+                        var srcCont = src.GetContent();
+                        if (!Enumerable.SequenceEqual(cont, srcCont))
+                            await _patches.Save(project, cont, res.FileName, "import");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Extract res {res.FileName} failed");
+                    }
                 }
 
-                Console.WriteLine("Import completed");
+                _logger.LogInformation("Import completed");
             }
             finally
             {
