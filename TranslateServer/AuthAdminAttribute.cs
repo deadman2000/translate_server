@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using System;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 
 namespace TranslateServer
 {

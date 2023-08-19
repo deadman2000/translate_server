@@ -1,10 +1,10 @@
-﻿using TranslateServer.Model;
-using TranslateServer.Store;
+﻿using TranslateServer.Store;
 using MongoDB.Driver;
 using System.Threading.Tasks;
 using System.Linq;
 using System;
 using TranslateServer.Model.Yandex;
+using TranslateServer.Documents;
 
 namespace TranslateServer.Services
 {

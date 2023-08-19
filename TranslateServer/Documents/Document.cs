@@ -1,7 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     [BsonIgnoreExtraElements(Inherited = true)]
     public class Document

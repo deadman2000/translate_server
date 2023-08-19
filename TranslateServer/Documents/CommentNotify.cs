@@ -2,7 +2,7 @@
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class CommentNotify : Document
     {

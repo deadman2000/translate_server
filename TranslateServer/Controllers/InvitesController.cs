@@ -3,7 +3,7 @@ using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System;
 using System.Threading.Tasks;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers

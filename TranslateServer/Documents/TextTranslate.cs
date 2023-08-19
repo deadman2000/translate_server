@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using TranslateServer.Model.Yandex;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class TextTranslate : Document
     {

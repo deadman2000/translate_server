@@ -1,8 +1,9 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using TranslateServer.Model;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class UserDocument : Document
     {

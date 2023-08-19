@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Model.Yandex;
 
 namespace TranslateServer.Requests

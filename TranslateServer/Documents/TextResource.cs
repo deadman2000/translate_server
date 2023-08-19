@@ -1,8 +1,7 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class TextResource : Document
     {

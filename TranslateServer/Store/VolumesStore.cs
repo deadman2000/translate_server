@@ -1,7 +1,7 @@
 ﻿using MongoDB.Driver;
 using System.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
 

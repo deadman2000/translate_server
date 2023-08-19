@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Services;
 using TranslateServer.Store;
 
@@ -62,7 +62,7 @@ namespace TranslateServer.Jobs
 
                 for (int i = 0; i < strings.Length; i++)
                 {
-                    var val = strings[i];
+                    var val = enc.EscapeString(strings[i]);
                     if (!string.IsNullOrWhiteSpace(val))
                         await _texts.Insert(new TextResource(_project, volume, i, val));
                 }
@@ -124,9 +124,9 @@ namespace TranslateServer.Jobs
 
                 for (int i = 0; i < records.Count; i++)
                 {
-                    var r = records[i];
-                    if (string.IsNullOrWhiteSpace(r.Text)) continue;
-                    await _texts.Insert(new TextResource(_project, volume, i, r.Text));
+                    var val = enc.EscapeString(records[i].Text);
+                    if (string.IsNullOrWhiteSpace(val)) continue;
+                    await _texts.Insert(new TextResource(_project, volume, i, val));
                 }
             }
         }

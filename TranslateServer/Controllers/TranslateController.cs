@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using Nest;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Requests;
 using TranslateServer.Services;
 using TranslateServer.Store;

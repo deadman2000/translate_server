@@ -5,7 +5,7 @@ using SCI_Lib.Resources;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Model.Yandex;
 using TranslateServer.Services;
 using TranslateServer.Store;

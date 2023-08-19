@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
-using MongoDB.Driver.Core.Events;
-using System.Diagnostics;
 
 namespace TranslateServer.Mongo
 {

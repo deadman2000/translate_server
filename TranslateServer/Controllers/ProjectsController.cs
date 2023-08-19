@@ -11,8 +11,8 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Helpers;
-using TranslateServer.Model;
 using TranslateServer.Model.Import;
 using TranslateServer.Requests;
 using TranslateServer.Services;
@@ -272,6 +272,7 @@ namespace TranslateServer.Controllers
                 await ExtractToDir(file, dir);
 
                 var package = SCIPackage.Load(dir);
+                var enc = package.GameEncoding;
 
                 var resources = package.GetTextResources();
                 await _translates.Delete(t => t.Project == project);
@@ -291,7 +292,7 @@ namespace TranslateServer.Controllers
                             Project = project,
                             Volume = volume,
                             Number = i,
-                            Text = strings[i],
+                            Text = enc.EscapeString(strings[i]),
                             Author = "import",
                             Editor = "import",
                             DateCreate = DateTime.UtcNow,

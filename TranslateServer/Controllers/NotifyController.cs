@@ -5,8 +5,7 @@ using MongoDB.Driver.Linq;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TranslateServer.Model;
-using TranslateServer.Services;
+using TranslateServer.Documents;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers

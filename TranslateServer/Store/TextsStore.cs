@@ -1,5 +1,5 @@
 ﻿using MongoDB.Driver;
-using TranslateServer.Model;
+using TranslateServer.Documents;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
 

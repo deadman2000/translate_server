@@ -3,12 +3,12 @@ using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.IO;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class Patch : Document
     {
         public string Project { get; set; }
-        
+
         public string FileName { get; internal set; }
 
         [BsonRepresentation(BsonType.ObjectId)]

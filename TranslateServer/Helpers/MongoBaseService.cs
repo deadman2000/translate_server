@@ -4,8 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Helpers;
-using TranslateServer.Model;
 using TranslateServer.Mongo;
 
 namespace TranslateServer.Services

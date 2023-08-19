@@ -5,6 +5,7 @@ using Quartz;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Model;
 using TranslateServer.Services;
 using TranslateServer.Store;

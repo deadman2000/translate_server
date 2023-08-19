@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class Volume : Document
     {

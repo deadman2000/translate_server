@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Text.Json.Serialization;
 
-namespace TranslateServer.Model
+namespace TranslateServer.Documents
 {
     public class Comment : Document
     {
