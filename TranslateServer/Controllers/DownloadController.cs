@@ -1,15 +1,14 @@
 ﻿using AGSUnpacker.Lib.Translation;
-using Elasticsearch.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using SCI_Lib.Resources;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Services;
 using TranslateServer.Store;
 
@@ -73,9 +72,10 @@ namespace TranslateServer.Controllers
         }
 
         [HttpGet("full")]
-        public Task Full(string project)
+        public async Task Full(string project)
         {
-            return GenerateSCIZip(project, true);
+            var proj = await _projects.GetProject(project);
+            await GenerateSCIZip(proj, true);
         }
 
         [HttpGet("patch")]
@@ -86,7 +86,7 @@ namespace TranslateServer.Controllers
             if (proj.Engine == "ags")
                 await GenerateAGSZip(project, false);
             else
-                await GenerateSCIZip(project, false);
+                await GenerateSCIZip(proj, false);
         }
 
         private async Task GenerateAGSZip(string project, bool full)
@@ -137,8 +137,9 @@ namespace TranslateServer.Controllers
             await ms.CopyToAsync(Response.Body);
         }
 
-        private async Task GenerateSCIZip(string project, bool full)
+        private async Task GenerateSCIZip(Project proj, bool full)
         {
+            var project = proj.Code;
             var package = _sci.Load(project);
 
             Dictionary<string, byte[]> additionalFiles = new(); // Файлы, которые не являются ресурсами
@@ -160,10 +161,14 @@ namespace TranslateServer.Controllers
                 }
             }
 
-            pathedRes.AddRange(await _words.Apply(package, project));
-            pathedRes.Add(await _suffixes.Apply(package, project));
-            pathedRes.AddRange(await _saids.Apply(package, project));
-            pathedRes.AddRange(await _synonyms.Apply(package, project));
+            if (proj.HasSaid)
+            {
+                pathedRes.AddRange(await _words.Apply(package, project));
+                pathedRes.Add(await _suffixes.Apply(package, project));
+                pathedRes.AddRange(await _saids.Apply(package, project));
+                pathedRes.AddRange(await _synonyms.Apply(package, project));
+            }
+
             pathedRes.AddRange(await _translate.Apply(package, project));
 
             var ms = new MemoryStream();
