@@ -69,6 +69,13 @@ namespace TranslateServer.Store
             await gridFS.DownloadToStreamAsync(new ObjectId(fileId), destStream);
         }
 
+        public async Task<byte[]> GetContent(string fileId)
+        {
+            var ms = new MemoryStream();
+            await gridFS.DownloadToStreamAsync(new ObjectId(fileId), ms);
+            return ms.ToArray();
+        }
+
         public Task Delete(string id)
         {
             return Update(p => p.Id == id)

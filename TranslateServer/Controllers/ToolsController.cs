@@ -1,12 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Nest;
+using SCI_Lib;
 using SCI_Lib.Analyzer;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.Resources.Scripts.Sections;
+using SCI_Lib.Resources.View;
+using SCI_Lib.Resources.Vocab;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
@@ -28,6 +33,10 @@ namespace TranslateServer.Controllers
         private readonly TextsStore _texts;
         private readonly SearchService _search;
         private readonly SCIService _sci;
+        private readonly WordsStore _words;
+        private readonly SuffixesStore _suffixes;
+        private readonly SaidStore _saids;
+        private readonly SynonymStore _synonyms;
 
         public ToolsController(ILogger<ToolsController> logger,
             ProjectsStore project,
@@ -35,7 +44,12 @@ namespace TranslateServer.Controllers
             VolumesStore volumes,
             TextsStore texts,
             SearchService search,
-            SCIService sci)
+            SCIService sci,
+            WordsStore words,
+            SuffixesStore suffixes,
+            SaidStore saids,
+            SynonymStore synonyms
+        )
         {
             _logger = logger;
             _project = project;
@@ -44,6 +58,10 @@ namespace TranslateServer.Controllers
             _texts = texts;
             _search = search;
             _sci = sci;
+            _words = words;
+            _suffixes = suffixes;
+            _saids = saids;
+            _synonyms = synonyms;
         }
 
         /// <summary>
@@ -278,35 +296,6 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        [HttpPost("setup_said/{project}")]
-        public async Task<ActionResult> SetupSaid(string project)
-        {
-            var package = _sci.Load(project);
-
-            var search = new TextUsageSearch(package);
-
-            List<string> proc = new();
-            if (project == "camelot")
-                proc.Add("proc_14");
-
-            var result = search.FindUsage(proc);
-            foreach (var p in result)
-            {
-                IEnumerable<SaidExpression> saids = p.Saids;
-                foreach (var said in saids)
-                    said.Normalize();
-                saids = saids.Where(s => s.Label != "kiss/angel>");
-
-                var volume = $"text_{p.Script:D3}";
-                var descr = string.Join('\n', saids.Select(s => s.Label));
-
-                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == p.Index)
-                    .Set(t => t.Description, descr)
-                    .Execute();
-            }
-            return Ok();
-        }
-
         [HttpPost("escape_check")]
         public async Task<ActionResult> EscapeCheck()
         {
@@ -336,7 +325,6 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-
         [HttpPost("escape_tr")]
         public async Task<ActionResult> EscapeTr()
         {
@@ -362,5 +350,236 @@ namespace TranslateServer.Controllers
             }
             return Ok();
         }
+
+        static List<string> PrintFuncs(string project)
+        {
+            List<string> proc = new();
+            if (project == "camelot")
+                proc.Add("proc_14");
+            return proc;
+        }
+
+        [HttpPost("parser/{project}")]
+        public async Task<ActionResult> ExtractParser(string project)
+        {
+            _logger.LogInformation($"{project} Begin extract parser");
+
+            var package = _sci.Load(project);
+
+            var scriptRes = package.Scripts
+                .GroupBy(r => r.Number).Select(g => g.First());
+
+            var scripts = scriptRes.Select(r => r.GetScript() as Script)
+                .Where(s => s != null)
+                .ToList();
+            if (!scripts.Any()) return BadRequest();
+
+            _logger.LogInformation($"{project} Find prints");
+            TextUsageSearch usage = new(package);
+            var calls = usage.FindUsage(PrintFuncs(project));
+
+            _logger.LogInformation($"{project} Setup texts saids");
+            foreach (var p in calls)
+            {
+                IEnumerable<SaidExpression> saids = p.Saids;
+                foreach (var said in saids)
+                    said.Normalize();
+                saids = saids.Where(s => s.Label != "kiss/angel>");
+
+                var volume = $"text_{p.Txt:D3}";
+                var descr = string.Join('\n', saids.Select(s => s.Label));
+
+                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == p.Index)
+                    .Set(t => t.Description, descr)
+                    .Execute();
+            }
+
+            {
+                _logger.LogInformation($"{project} Extract saids");
+                await _saids.Delete(s => s.Project == project);
+                await _synonyms.Delete(s => s.Project == project);
+
+                var printMap = calls
+                    .SelectMany(c => c.Saids.Select(s => new { s, c }))
+                    .GroupBy(o => o.s)
+                    .ToDictionary(gr => gr.Key,
+                        gr => string.Join(',', gr.Select(o => $"{o.c.Txt}.{o.c.Index}")));
+
+                foreach (var scr in scripts)
+                {
+                    var ss = scr.SaidSection;
+                    if (ss == null) continue;
+
+                    for (int i = 0; i < ss.Saids.Count; i++)
+                    {
+                        var expr = ss.Saids[i];
+                        await _saids.Insert(new SaidDocument
+                        {
+                            Project = project,
+                            Script = scr.Resource.Number,
+                            Index = i,
+                            Expression = expr.Label,
+                            Prints = printMap.GetValueOrDefault(expr, null)
+                        });
+                    }
+
+                    var synSec = scr.Get<SynonymSecion>().FirstOrDefault();
+                    if (synSec != null)
+                    {
+                        for (int i = 0; i < synSec.Synonyms.Count; i++)
+                        {
+                            var s = synSec.Synonyms[i];
+                            await _synonyms.Insert(new SynonymDocument
+                            {
+                                Project = project,
+                                Script = scr.Resource.Number,
+                                Index = i,
+                                WordA = s.WordA,
+                                WordB = s.WordB,
+                            });
+                        }
+                    }
+                }
+            }
+
+            Dictionary<ushort, string> wordsUsage;
+            {
+                _logger.LogInformation($"{project} Build words usage map");
+                wordsUsage = scripts
+                    .SelectMany(s => s.Get<SaidSection>().SelectMany(ss => ss.Saids)
+                            .SelectMany(s => s.Expression)
+                            .Where(e => !e.IsOperator)
+                            .Select(s => s.Data)
+                            .Union(s.Get<SynonymSecion>().SelectMany(s => s.Synonyms).Select(s => s.WordA))
+                            .Distinct()
+                            .Select(w => new { S = s, W = w })
+                    )
+                    .GroupBy(i => i.W)
+                    .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(n => n.S.Resource.Number.ToString())));
+            }
+            if (!wordsUsage.Any()) return BadRequest();
+
+            {
+                _logger.LogInformation($"{project} Extract words");
+                if (package.GetResource<ResVocab>(0) is not ResVocab000 voc) return BadRequest();
+
+                await _words.Delete(w => w.Project == project && !w.IsTranslate);
+
+                var words = voc.GetWords();
+                foreach (var gr in words.GroupBy(w => w.Id))
+                {
+                    await _words.Insert(new WordDocument
+                    {
+                        Project = project,
+                        Usage = wordsUsage.GetValueOrDefault(Word.GetGroup(gr.Key), ""),
+                        WordId = gr.Key,
+                        Text = string.Join(", ", gr.Select(w => w.Text)),
+                        IsTranslate = false,
+                    });
+                }
+            }
+
+            {
+                _logger.LogInformation($"{project} Extract suffixes");
+                await _suffixes.Delete(s => s.Project == project && !s.IsTranslate);
+                if (package.GetResource<ResVocab>(901) is not ResVocab901 voc) return BadRequest();
+                foreach (var s in voc.GetSuffixes())
+                {
+                    await _suffixes.Insert(new SuffixDocument
+                    {
+                        Project = project,
+                        IsTranslate = false,
+                        Input = s.Pattern,
+                        InClass = (int)s.InputClass,
+                        Output = s.Output,
+                        OutClass = (int)s.SuffixClass,
+                    });
+                }
+            }
+
+            await _project.Update(p => p.Code == project).Set(p => p.HasSaid, true).Execute();
+            _logger.LogInformation($"{project} Extract parser completed!");
+
+            return Ok();
+        }
+
+        [HttpPost("import")]
+        public async Task<ActionResult> Import()
+        {
+            var project = "camelot";
+            var package = _sci.Load(project);
+            var translate = SCIPackage.Load(@"D:\Dos\GAMES\Conquests_of_Camelot_rus\");
+
+            {
+                _logger.LogInformation($"{project} Import words");
+                var wordsVoc = (ResVocab001)translate.GetResource(ResType.Vocabulary, 1);
+                await _words.Delete(w => w.Project == project && w.IsTranslate);
+                var words = wordsVoc.GetWords();
+                foreach (var gr in words.GroupBy(w => w.Id))
+                {
+                    await _words.Insert(new WordDocument
+                    {
+                        Project = project,
+                        WordId = gr.Key,
+                        Text = string.Join(", ", gr.Select(w => w.Text)),
+                        IsTranslate = true,
+                    });
+                }
+            }
+
+            {
+                _logger.LogInformation($"{project} Import suffixes");
+                var suffVoc = (ResVocab901)translate.GetResource(ResType.Vocabulary, 901);
+                await _suffixes.Delete(s => s.Project == project && s.IsTranslate);
+                foreach (var suff in suffVoc.GetSuffixes())
+                {
+                    if (IsTranslate(suff.Pattern) || IsTranslate(suff.Output))
+                    {
+                        await _suffixes.Insert(new SuffixDocument
+                        {
+                            Project = project,
+                            IsTranslate = true,
+                            Input = suff.Pattern,
+                            InClass = (int)suff.InputClass,
+                            Output = suff.Output,
+                            OutClass = (int)suff.SuffixClass,
+                        });
+                    }
+                }
+            }
+
+            {
+                _logger.LogInformation($"{project} Import saids");
+                await _saids.Update(s => s.Project == project).Set(s => s.Patch, null).ExecuteMany();
+
+                var scriptRes = package.Scripts
+                    .GroupBy(r => r.Number).Select(g => g.First());
+                var scripts = scriptRes.Select(r => r.GetScript() as Script)
+                    .Where(s => s != null)
+                    .ToList();
+                foreach (var scr in scripts)
+                {
+                    var ss = scr.SaidSection;
+                    if (ss == null) continue;
+
+                    var trScr = translate.GetResource<ResScript>(scr.Resource.Number).GetScript() as Script;
+                    var trSS = trScr.SaidSection;
+
+                    for (int i = 0; i < ss.Saids.Count; i++)
+                    {
+                        if (!SaidExpression.IsEqual(trSS.Saids[i].Expression, ss.Saids[i].Expression))
+                        {
+                            await _saids.Update(s => s.Project == project && s.Script == scr.Resource.Number && s.Index == i)
+                                .Set(s => s.Patch, trSS.Saids[i].Label)
+                                .Execute();
+                        }
+                    }
+                }
+            }
+
+            return Ok();
+        }
+
+        private static bool IsTranslate(string str) => str.Any(c => c > 127);
     }
 }

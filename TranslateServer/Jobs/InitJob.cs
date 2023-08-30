@@ -48,7 +48,6 @@ namespace TranslateServer.Jobs
         {
             await UsersInit();
             //await EscapeStrings();
-            //await TranslateCheck();
             await Spellchecking();
             await UpdateNullEngine();
             _logger.LogInformation("Init complete");
@@ -128,27 +127,6 @@ namespace TranslateServer.Jobs
                     _logger.LogWarning($"Escaped {project} {res.FileName} {i}");
                     await _texts.Update(t => t.Id == txt.Id)
                         .Set(t => t.Text, esc)
-                        .Execute();
-                }
-            }
-        }
-
-        private async Task TranslateCheck()
-        {
-            while (true)
-            {
-                var translates = _translate.Queryable()
-                    .Where(t => t.IsTranslate == null)
-                    .Take(1000)
-                    .ToList();
-
-                if (!translates.Any()) break;
-
-                foreach (var tr in translates)
-                {
-                    var text = await _texts.Get(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number);
-                    await _translate.Update(t => t.Id == tr.Id)
-                        .Set(t => t.IsTranslate, text.Text != tr.Text)
                         .Execute();
                 }
             }

@@ -134,7 +134,7 @@ namespace TranslateServer.Jobs
                         said.Normalize();
                     saids = saids.Where(s => s.Label != "kiss/angel>"); // PQ2
 
-                    var volume = $"text_{p.Script:D3}";
+                    var volume = $"text_{p.Txt:D3}";
                     var descr = string.Join('\n', saids.Select(s => s.Label));
 
                     await _texts.Update(t => t.Project == project.Code && t.Volume == volume && t.Number == p.Index)

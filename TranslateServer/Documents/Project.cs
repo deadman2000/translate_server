@@ -31,6 +31,8 @@ namespace TranslateServer.Documents
         public int ApprovedLetters { get; set; }
 
         public bool Shared { get; set; }
+
+        public bool HasSaid { get; set; }
     }
 
     public enum ProjectStatus

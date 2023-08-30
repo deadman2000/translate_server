@@ -40,7 +40,7 @@ namespace TranslateServer.Documents
 
         public SpellResult[] Spellcheck { get; set; }
 
-        public bool? IsTranslate { get; set; }
+        public bool IsTranslate { get; set; }
 
         class TextTranslateComparer : IEqualityComparer<TextTranslate>
         {

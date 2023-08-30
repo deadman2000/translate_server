@@ -1,7 +1,8 @@
 ﻿using AGSUnpacker.Lib.Translation;
+using Elasticsearch.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
-using SCI_Lib;
+using SCI_Lib.Resources;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,12 +23,20 @@ namespace TranslateServer.Controllers
         private readonly TranslateStore _translate;
         private readonly PatchesStore _patches;
         private readonly VolumesStore _volumes;
+        private readonly WordsStore _words;
+        private readonly SuffixesStore _suffixes;
+        private readonly SaidStore _saids;
+        private readonly SynonymStore _synonyms;
 
         public DownloadController(SCIService sci,
             TranslateStore translate,
             PatchesStore patches,
             ProjectsStore projects,
-            VolumesStore volumes
+            VolumesStore volumes,
+            WordsStore words,
+            SuffixesStore suffixes,
+            SaidStore saids,
+            SynonymStore synonyms
         )
         {
             _sci = sci;
@@ -35,6 +44,10 @@ namespace TranslateServer.Controllers
             _patches = patches;
             _projects = projects;
             _volumes = volumes;
+            _words = words;
+            _suffixes = suffixes;
+            _saids = saids;
+            _synonyms = synonyms;
         }
 
         [HttpGet("source")]
@@ -126,68 +139,56 @@ namespace TranslateServer.Controllers
 
         private async Task GenerateSCIZip(string project, bool full)
         {
+            var package = _sci.Load(project);
 
-            var dir = _sci.Copy(project);
-            var ms = new MemoryStream();
-            try
+            Dictionary<string, byte[]> additionalFiles = new(); // Файлы, которые не являются ресурсами
+            List<Resource> pathedRes = new();
+
+            //Применяем патчи
+            var patches = (await _patches.Query(p => p.Project == project && !p.Deleted)).ToList();
+            foreach (var p in patches)
             {
-                HashSet<string> excludeSources = new();
-                using var archive = new ZipArchive(ms, ZipArchiveMode.Create, true);
-
-                //Применяем патчи
-                var patches = (await _patches.Query(p => p.Project == project && !p.Deleted)).ToList();
-                foreach (var p in patches)
+                var data = await _patches.GetContent(p.FileId);
+                try
                 {
-                    var patchPath = Path.Combine(dir, p.FileName);
-                    if (System.IO.File.Exists(patchPath))
-                        System.IO.File.Delete(patchPath);
+                    var res = package.SetPatch(p.FileName, data);
+                    pathedRes.Add(res);
+                }
+                catch // Это не SCI ресурс
+                {
+                    additionalFiles.Add(p.FileName, data);
+                }
+            }
 
-                    using FileStream fs = new(patchPath, FileMode.CreateNew, FileAccess.Write);
-                    await _patches.Download(p.FileId, fs);
+            pathedRes.AddRange(await _words.Apply(package, project));
+            pathedRes.Add(await _suffixes.Apply(package, project));
+            pathedRes.AddRange(await _saids.Apply(package, project));
+            pathedRes.AddRange(await _synonyms.Apply(package, project));
+            pathedRes.AddRange(await _translate.Apply(package, project));
+
+            var ms = new MemoryStream();
+
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                HashSet<string> addedFiles = new();
+
+                // Добавляем в архив пропатченные ресурсы
+                foreach (var res in pathedRes)
+                {
+                    var entry = archive.CreateEntry(res.FileName);
+                    using var s = entry.Open();
+                    var bytes = res.GetPatch();
+                    res.Save(s, bytes);
+                    addedFiles.Add(res.FileName.ToLower());
                 }
 
-                // Читаем ресурсы
-                var package = SCIPackage.Load(dir);
-                var enc = package.GameEncoding;
-
-                // Патчим строковые ресурсы и добавляем в архив
+                // Добавляем в архив дополнительные патчи
+                foreach (var kv in additionalFiles)
                 {
-                    var texts = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null);
-                    foreach (var g in texts.GroupBy(t => t.Volume))
-                    {
-                        var resourceName = g.Key.Replace('_', '.');
-                        var res = package.GetResource(resourceName);
-                        var strings = res.GetStrings();
-                        for (int i = 0; i < strings.Length; i++)
-                            strings[i] = enc.EscapeString(strings[i]);
-
-                        var trStrings = (string[])strings.Clone();
-
-                        foreach (var t in g)
-                            trStrings[t.Number] = t.Text;
-
-                        if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
-
-                        for (int i = 0; i < trStrings.Length; i++)
-                            trStrings[i] = enc.UnescapeString(trStrings[i]);
-
-                        res.SetStrings(trStrings);
-                        var bytes = res.GetPatch();
-                        var entry = archive.CreateEntry(resourceName);
-                        using var s = entry.Open();
-                        res.Save(s, bytes);
-
-                        excludeSources.Add(resourceName.ToLower());
-                    }
-                }
-
-                // Добавляем в архив оставшиеся патчи
-                foreach (var p in patches)
-                {
-                    if (excludeSources.Contains(p.FileName.ToLower())) continue;
-
-                    archive.CreateEntryFromFile(Path.Combine(dir, p.FileName), p.FileName);
-                    excludeSources.Add(p.FileName.ToLower());
+                    var entry = archive.CreateEntry(kv.Key);
+                    using var s = entry.Open();
+                    s.Write(kv.Value);
+                    addedFiles.Add(kv.Key.ToLower());
                 }
 
                 // Добавляем в архив остальные ресурсы
@@ -198,15 +199,11 @@ namespace TranslateServer.Controllers
                     foreach (var f in files)
                     {
                         var relativePath = Path.GetRelativePath(path, f);
-                        if (excludeSources.Contains(relativePath.ToLower())) continue;
+                        if (addedFiles.Contains(relativePath.ToLower())) continue;
 
                         archive.CreateEntryFromFile(f, relativePath);
                     }
                 }
-            }
-            finally
-            {
-                Directory.Delete(dir, true);
             }
 
             string fileName = project;

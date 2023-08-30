@@ -67,6 +67,10 @@ namespace TranslateServer
             services.AddScoped<VideoTextStore>();
             services.AddScoped<VideoReferenceStore>();
             services.AddScoped<CommentNotifyStore>();
+            services.AddScoped<WordsStore>();
+            services.AddScoped<SuffixesStore>();
+            services.AddScoped<SaidStore>();
+            services.AddScoped<SynonymStore>();
 
             services.AddScoped<SearchService>();
             services.AddScoped<SCIService>();
@@ -74,6 +78,7 @@ namespace TranslateServer
             services.AddScoped<YandexSpellcheck>();
 
             services.AddSingleton<RunnersService>();
+            services.AddSingleton<ResCache>();
 
             if (!Configuration.GetValue("DisableJobs", false))
             {

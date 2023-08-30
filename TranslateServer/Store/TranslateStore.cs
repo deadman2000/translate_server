@@ -1,4 +1,6 @@
 ﻿using MongoDB.Driver;
+using SCI_Lib;
+using SCI_Lib.Resources;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +28,12 @@ namespace TranslateServer.Store
             });
         }
 
+        public class ChartRow
+        {
+            public long D { get; set; }
+            public int L { get; set; }
+        }
+
         public async Task<ChartRow[]> GetChart(string login)
         {
             var translates = await Query(t => t.Author == login && t.FirstId == null && !t.Deleted);
@@ -43,10 +51,33 @@ namespace TranslateServer.Store
             return result;
         }
 
-        public class ChartRow
+        public async Task<IEnumerable<Resource>> Apply(SCIPackage package, string project)
         {
-            public long D { get; set; }
-            public int L { get; set; }
+            List<Resource> resources = new();
+            var enc = package.GameEncoding;
+            var texts = await Query(t => t.Project == project && !t.Deleted && t.NextId == null);
+            foreach (var g in texts.GroupBy(t => t.Volume))
+            {
+                var resourceName = g.Key.Replace('_', '.');
+                var res = package.GetResource(resourceName);
+                var strings = res.GetStrings();
+                for (int i = 0; i < strings.Length; i++)
+                    strings[i] = enc.EscapeString(strings[i]);
+
+                var trStrings = (string[])strings.Clone();
+
+                foreach (var t in g)
+                    trStrings[t.Number] = t.Text;
+
+                if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
+
+                for (int i = 0; i < trStrings.Length; i++)
+                    trStrings[i] = enc.UnescapeString(trStrings[i]);
+
+                res.SetStrings(trStrings);
+                resources.Add(res);
+            }
+            return resources;
         }
     }
 }
