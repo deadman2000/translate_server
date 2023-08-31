@@ -40,6 +40,13 @@ namespace TranslateServer.Controllers
                 .ThenBy(w => w.Class));
         }
 
+        [HttpGet("{project}/{id}")]
+        public async Task<ActionResult> Get(string project, int id)
+        {
+            var package = await _resCache.LoadTranslated(project);
+            return Ok(package.GetWords().Where(w => w.Group == id).Select(w => w.Text));
+        }
+
         public class PostRequest
         {
             public string Words { get; set; }
@@ -64,7 +71,6 @@ namespace TranslateServer.Controllers
                 var package = await _resCache.LoadTranslated(project);
                 var wordToIds = package.GetWordIds();
 
-                var id = Word.GetId((ushort)request.Gr.Value, (ushort)request.Cl);
                 var words = request.Words.Split(',').Select(w => w.Trim()).Where(w => w.Length > 0);
 
                 foreach (var w in words)
@@ -81,6 +87,7 @@ namespace TranslateServer.Controllers
                 if (!request.Gr.HasValue)
                     request.Gr = await NextGroupId(project);
 
+                var id = Word.GetId((ushort)request.Gr.Value, (ushort)request.Cl);
                 await _words.Update(w => w.Project == project && w.IsTranslate && w.WordId == id)
                      .Set(w => w.Text, string.Join(", ", words))
                      .Upsert();

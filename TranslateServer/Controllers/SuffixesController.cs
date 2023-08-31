@@ -60,28 +60,19 @@ namespace TranslateServer.Controllers
             public string Inp { get; set; }
             public int OutCl { get; set; }
             public string Out { get; set; }
-
-            public void Prepare()
-            {
-                Inp ??= "";
-                Out ??= "";
-                if (!Inp.StartsWith('*')) Inp = '*' + Inp;
-                if (!Out.StartsWith('*')) Out = '*' + Out;
-            }
         }
 
         [HttpPost("{project}")]
         public async Task<ActionResult> Create(string project, CreateRequest request)
         {
             _resCache.Clear(project);
-            request.Prepare();
             var doc = new SuffixDocument
             {
                 Project = project,
                 InClass = request.InCl,
-                Input = request.Inp,
+                Input = request.Inp.TrimStart('*'),
                 OutClass = request.OutCl,
-                Output = request.Out,
+                Output = request.Out.TrimStart('*'),
                 IsTranslate = true,
             };
             await _suffixes.Insert(doc);
@@ -93,12 +84,11 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Update(string project, string id, CreateRequest request)
         {
             _resCache.Clear(project);
-            request.Prepare();
             await _suffixes.Update(s => s.Id == id && s.Project == project)
                 .Set(s => s.InClass, request.InCl)
-                .Set(s => s.Input, request.Inp)
+                .Set(s => s.Input, request.Inp.TrimStart('*'))
                 .Set(s => s.OutClass, request.OutCl)
-                .Set(s => s.Output, request.Out)
+                .Set(s => s.Output, request.Out.TrimStart('*'))
                 .Execute();
             var suff = await _suffixes.GetById(id);
             return Ok(suff);
