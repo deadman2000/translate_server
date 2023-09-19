@@ -26,6 +26,7 @@ namespace TranslateServer.Jobs
         private readonly YandexSpellcheck _spellcheck;
         private readonly TextsStore _texts;
         private readonly SCIService _sci;
+        private readonly SynonymStore _synonyms;
 
         public InitJob(ILogger<InitJob> logger,
             UsersStore users,
@@ -33,7 +34,8 @@ namespace TranslateServer.Jobs
             TranslateStore translate,
             YandexSpellcheck spellcheck,
             TextsStore texts,
-            SCIService sci)
+            SCIService sci,
+            SynonymStore synonyms)
         {
             _logger = logger;
             _users = users;
@@ -42,6 +44,7 @@ namespace TranslateServer.Jobs
             _spellcheck = spellcheck;
             _texts = texts;
             _sci = sci;
+            _synonyms = synonyms;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -50,7 +53,15 @@ namespace TranslateServer.Jobs
             //await EscapeStrings();
             await Spellchecking();
             await UpdateNullEngine();
+            await SynonymDuplicates();
             _logger.LogInformation("Init complete");
+        }
+
+        private async Task SynonymDuplicates()
+        {
+            await _synonyms.Update(s => !s.Delete && s.WordA == s.WordB)
+                .Set(s => s.Delete, true)
+                .ExecuteMany();
         }
 
         private Task UpdateNullEngine()
@@ -145,6 +156,7 @@ namespace TranslateServer.Jobs
             };
             user.SetPassword("admin");
             await _users.Insert(user);
+            _logger.LogWarning("Created user 'admin' with password 'admin'");
         }
 
         private async Task Spellchecking()

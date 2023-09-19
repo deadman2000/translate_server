@@ -7,6 +7,7 @@ using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.Utils;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TranslateServer.Model;
 using TranslateServer.Services;
@@ -213,6 +214,33 @@ namespace TranslateServer.Controllers
                 Examples = examplesValidations,
                 Valid = examplesValidations.All(v => v.Match)
             };
+        }
+
+        public class TranslateRequest
+        {
+            public string Said { get; set; }
+        }
+
+        [HttpPost("{project}/translate")]
+        public async Task<ActionResult<string>> Translate(string project, TranslateRequest request)
+        {
+            var package = await _resCache.LoadTranslated(project);
+            var saidData = package.ParseSaid(request.Said);
+            var idToWord = package.GetIdToWord();
+
+            StringBuilder sb = new();
+
+            foreach (var said in saidData)
+            {
+                if (said.IsOperator)
+                    sb.Append(said.Letter);
+                else if (said.OriginalWord.Any(l => l >= 'a' && l <= 'z'))
+                    sb.Append(idToWord[said.Data]);
+                else
+                    sb.Append(said.OriginalWord);
+            }
+
+            return Ok(sb.ToString());
         }
     }
 }

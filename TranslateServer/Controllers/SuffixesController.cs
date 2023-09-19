@@ -60,22 +60,32 @@ namespace TranslateServer.Controllers
             public string Inp { get; set; }
             public int OutCl { get; set; }
             public string Out { get; set; }
+
+            public void Prepare()
+            {
+                Inp = Inp.TrimStart('*');
+                Out = Out.TrimStart('*');
+            }
         }
 
         [HttpPost("{project}")]
         public async Task<ActionResult> Create(string project, CreateRequest request)
         {
-            _resCache.Clear(project);
+            request.Prepare();
+            if (request.Inp.Length == 0 && request.Out.Length == 0 || request.InCl == 0 || request.OutCl == 0)
+                return BadRequest(new { Message = "Invalid suffix" });
+
             var doc = new SuffixDocument
             {
                 Project = project,
                 InClass = request.InCl,
-                Input = request.Inp.TrimStart('*'),
+                Input = request.Inp,
                 OutClass = request.OutCl,
-                Output = request.Out.TrimStart('*'),
+                Output = request.Out,
                 IsTranslate = true,
             };
             await _suffixes.Insert(doc);
+            _resCache.Clear(project);
             return Ok(doc);
         }
 
@@ -83,13 +93,17 @@ namespace TranslateServer.Controllers
         [HttpPost("{project}/{id}")]
         public async Task<ActionResult> Update(string project, string id, CreateRequest request)
         {
-            _resCache.Clear(project);
+            request.Prepare();
+            if (request.Inp.Length == 0 && request.Out.Length == 0 || request.InCl == 0 || request.OutCl == 0)
+                return BadRequest(new { Message = "Invalid suffix" });
+
             await _suffixes.Update(s => s.Id == id && s.Project == project)
                 .Set(s => s.InClass, request.InCl)
-                .Set(s => s.Input, request.Inp.TrimStart('*'))
+                .Set(s => s.Input, request.Inp)
                 .Set(s => s.OutClass, request.OutCl)
-                .Set(s => s.Output, request.Out.TrimStart('*'))
+                .Set(s => s.Output, request.Out)
                 .Execute();
+            _resCache.Clear(project);
             var suff = await _suffixes.GetById(id);
             return Ok(suff);
         }
@@ -117,7 +131,7 @@ namespace TranslateServer.Controllers
             var suffixes = package.GetSuffixes();
             var txtToWord = package.GetTxtWords();
 
-            if (!txtToWord.TryGetValue(request.Word, out var words))
+            if (!txtToWord.TryGetValue(request.Word.ToLower(), out var words))
                 return BadRequest(new { Message = $"Unknown word '{request.Word}'" });
 
             if (words.Length > 1)
@@ -131,7 +145,7 @@ namespace TranslateServer.Controllers
                     result.Add($"{w}  {s.SuffixClass}");
             }
 
-            return Ok(result);
+            return Ok(result.Order());
         }
     }
 }

@@ -71,7 +71,7 @@ namespace TranslateServer.Controllers
                 var package = await _resCache.LoadTranslated(project);
                 var wordToIds = package.GetWordIds();
 
-                var words = request.Words.Split(',').Select(w => w.Trim()).Where(w => w.Length > 0);
+                var words = request.Words.ToLower().Split(',').Select(w => w.Trim()).Where(w => w.Length > 0);
 
                 foreach (var w in words)
                 {

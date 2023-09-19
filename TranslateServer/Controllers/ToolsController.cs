@@ -1,13 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Nest;
 using SCI_Lib;
 using SCI_Lib.Analyzer;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.Resources.Scripts.Sections;
-using SCI_Lib.Resources.View;
 using SCI_Lib.Resources.Vocab;
 using System;
 using System.Collections.Generic;
@@ -436,6 +435,7 @@ namespace TranslateServer.Controllers
                                 Index = i,
                                 WordA = s.WordA,
                                 WordB = s.WordB,
+                                Delete = s.WordA == s.WordB
                             });
                         }
                     }
@@ -581,5 +581,37 @@ namespace TranslateServer.Controllers
         }
 
         private static bool IsTranslate(string str) => str.Any(c => c > 127);
+
+        [HttpPost("gob")]
+        [AllowAnonymous]
+        public async Task<ActionResult> Gob()
+        {
+            var proj = "gobliiins_5";
+            var allTxt = await _texts.Query(t => t.Project == proj);
+            var allTr = await _translate.Query(t => t.Project == proj && !t.Deleted && t.NextId == null);
+
+            HashSet<string> skip = new();
+
+            foreach (var tr in allTr)
+            {
+                var txt = allTxt.FirstOrDefault(t => t.Volume == tr.Volume && t.Number == tr.Number);
+                if (txt == null) continue;
+                if (skip.Contains(txt.Description)) continue;
+
+                var other = allTxt.Where(t => t.Description == txt.Description && t.Volume != txt.Volume);
+
+                foreach (var t2 in other)
+                {
+                    if (allTr.Exists(t => t.Volume == t2.Volume && t.Number == t2.Number)) continue;
+
+                    await Console.Out.WriteLineAsync($"{txt.Volume} => {t2.Volume}   {txt.Text} {t2.Text} => {tr.Text}");
+                    //await _translateService.Submit(proj, t2.Volume, t2.Number, tr.Text, "system", true);
+                    skip.Add(txt.Description);
+                }
+            }
+
+
+            return Ok();
+        }
     }
 }
