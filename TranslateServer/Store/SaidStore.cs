@@ -1,6 +1,7 @@
 ﻿using SCI_Lib;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,8 +31,15 @@ namespace TranslateServer.Store
                 bool changed = false;
                 foreach (var doc in gr)
                 {
-                    if (ss.Saids[doc.Index].Set(doc.Patch))
-                        changed = true;
+                    try
+                    {
+                        if (ss.Saids[doc.Index].Set(doc.Patch))
+                            changed = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Patch said {res.Number} failed: {ex.Message}", ex);
+                    }
                 }
 
                 if (changed)
