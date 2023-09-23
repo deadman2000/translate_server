@@ -1,4 +1,5 @@
-﻿using SCI_Lib;
+﻿using Microsoft.Extensions.Logging;
+using SCI_Lib;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Sections;
@@ -13,8 +14,11 @@ namespace TranslateServer.Store
 {
     public class SynonymStore : MongoBaseService<SynonymDocument>
     {
-        public SynonymStore(MongoService mongo) : base(mongo, "Synonyms")
+        private readonly ILogger<SynonymStore> _logger;
+
+        public SynonymStore(ILogger<SynonymStore> logger, MongoService mongo) : base(mongo, "Synonyms")
         {
+            _logger = logger;
         }
 
         public async Task<IEnumerable<Resource>> Apply(SCIPackage package, string project)
@@ -27,6 +31,11 @@ namespace TranslateServer.Store
                 var res = package.GetResource<ResScript>((ushort)gr.Key);
                 var scr = res.GetScript() as Script;
                 var ss = scr.SynonymSecion;
+                if (ss == null)
+                {
+                    _logger.LogWarning($"Script {res.Number} synonyms section not exists");
+                    continue;
+                }
 
                 var toRemove = gr.Where(s => s.Delete)
                     .Select(s => ss.Synonyms[s.Index.Value])
