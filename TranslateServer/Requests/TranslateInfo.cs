@@ -23,7 +23,7 @@ namespace TranslateServer.Requests
         public string Editor { get; }
         public DateTime DateCreate { get; }
         public string Text { get; }
-        public SpellResult[] Spellcheck { get; }
+        public IEnumerable<SpellResult> Spellcheck { get; }
         public IEnumerable<Comment> Comments { get; set; }
     }
 

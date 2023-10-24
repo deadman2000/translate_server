@@ -5,6 +5,7 @@ using System.Linq;
 using System;
 using TranslateServer.Model.Yandex;
 using TranslateServer.Documents;
+using System.Collections.Generic;
 
 namespace TranslateServer.Services
 {
@@ -123,7 +124,7 @@ namespace TranslateServer.Services
 
             text = text.TrimEnd('\r', '\n');
 
-            SpellResult[] spellcheck;
+            IEnumerable<SpellResult> spellcheck;
             if (text != txt.Text)
                 spellcheck = await _spellcheck.Spellcheck(text);
             else

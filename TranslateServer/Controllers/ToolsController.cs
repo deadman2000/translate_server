@@ -36,6 +36,7 @@ namespace TranslateServer.Controllers
         private readonly SuffixesStore _suffixes;
         private readonly SaidStore _saids;
         private readonly SynonymStore _synonyms;
+        private readonly TranslateService _translateService;
 
         public ToolsController(ILogger<ToolsController> logger,
             ProjectsStore project,
@@ -47,7 +48,8 @@ namespace TranslateServer.Controllers
             WordsStore words,
             SuffixesStore suffixes,
             SaidStore saids,
-            SynonymStore synonyms
+            SynonymStore synonyms,
+            TranslateService translateService
         )
         {
             _logger = logger;
@@ -61,6 +63,7 @@ namespace TranslateServer.Controllers
             _suffixes = suffixes;
             _saids = saids;
             _synonyms = synonyms;
+            _translateService = translateService;
         }
 
         /// <summary>
@@ -605,7 +608,7 @@ namespace TranslateServer.Controllers
                     if (allTr.Exists(t => t.Volume == t2.Volume && t.Number == t2.Number)) continue;
 
                     await Console.Out.WriteLineAsync($"{txt.Volume} => {t2.Volume}   {txt.Text} {t2.Text} => {tr.Text}");
-                    //await _translateService.Submit(proj, t2.Volume, t2.Number, tr.Text, "system", true);
+                    await _translateService.Submit(proj, t2.Volume, t2.Number, tr.Text, "system", true);
                     skip.Add(txt.Description);
                 }
             }

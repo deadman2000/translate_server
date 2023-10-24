@@ -25,7 +25,7 @@ namespace TranslateServer.Controllers
         public ActionResult GetErrors(string project)
         {
             var translates = _translate.Queryable()
-                .Where(t => t.Project == project && !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Length > 0)
+                .Where(t => t.Project == project && !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Any())
                 .OrderBy(t => t.Volume).ThenBy(t => t.Number)
                 .Take(10)
                 .Select(t => new
@@ -70,7 +70,7 @@ namespace TranslateServer.Controllers
         public ActionResult GetTotal(string project)
         {
             var count = _translate.Queryable()
-                .Where(t => t.Project == project && !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Length > 0)
+                .Where(t => t.Project == project && !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Any())
                 .Count();
             return Ok(new { total = count});
         }

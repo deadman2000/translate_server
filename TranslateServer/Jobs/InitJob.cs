@@ -178,7 +178,7 @@ namespace TranslateServer.Jobs
                     var spellcheck = res;
                     var tr = translates[i];
 
-                    if (res.Length > 0)
+                    if (res.Any())
                     {
                         var txt = await _texts.Get(t => t.Project == tr.Project && t.Volume == tr.Volume && t.Number == tr.Number);
                         if (txt.Text == tr.Text)

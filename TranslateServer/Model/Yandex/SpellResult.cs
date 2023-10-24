@@ -1,4 +1,6 @@
-﻿namespace TranslateServer.Model.Yandex
+﻿using System.Collections.Generic;
+
+namespace TranslateServer.Model.Yandex
 {
     public class SpellResult
     {
@@ -8,6 +10,6 @@
         public int Col { get; set; }
         public int Len { get; set; }
         public string Word { get; set; }
-        public string[] S { get; set; }
+        public IEnumerable<string> S { get; set; }
     }
 }

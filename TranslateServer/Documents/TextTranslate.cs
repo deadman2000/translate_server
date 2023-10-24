@@ -38,7 +38,7 @@ namespace TranslateServer.Documents
 
         public int Letters { get; set; }
 
-        public SpellResult[] Spellcheck { get; set; }
+        public IEnumerable<SpellResult> Spellcheck { get; set; }
 
         public bool IsTranslate { get; set; }
 

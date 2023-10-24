@@ -1,5 +1,6 @@
 ﻿using Flurl.Http;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model.Yandex;
 
@@ -9,14 +10,17 @@ namespace TranslateServer.Services
     {
         private readonly string CHECKTEXT_URL = "https://speller.yandex.net/services/spellservice.json/checkText";
 
-        public async Task<SpellResult[]> Spellcheck(string text)
+        public async Task<IEnumerable<SpellResult>> Spellcheck(string text)
         {
             while (true)
             {
                 try
                 {
                     var response = await CHECKTEXT_URL.PostUrlEncodedAsync(new { text, lang = "ru" });
-                    return await response.GetJsonAsync<SpellResult[]>();
+                    var results = await response.GetJsonAsync<SpellResult[]>();
+                    foreach (var res in results)
+                        res.S = res.S.Where(s => s.Trim() != res.Word.Trim());
+                    return results.Where(r => r.S.Any());
                 }
                 catch (FlurlHttpException fhex)
                 {
@@ -25,7 +29,7 @@ namespace TranslateServer.Services
             }
         }
 
-        public async IAsyncEnumerable<SpellResult[]> Spellcheck(string[] texts)
+        public async IAsyncEnumerable<IEnumerable<SpellResult>> Spellcheck(string[] texts)
         {
             foreach (var txt in texts)
             {
