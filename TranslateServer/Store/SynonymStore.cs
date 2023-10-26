@@ -24,7 +24,8 @@ namespace TranslateServer.Store
         public async Task<IEnumerable<Resource>> Apply(SCIPackage package, string project)
         {
             List<Resource> resources = new();
-            var synonyms = await Query(s => s.Project == project && s.Delete || s.Index == null);
+            // Выбираем те записи, которые надо добавить или удалить
+            var synonyms = await Query(s => s.Project == project && (s.Delete || s.Index == null));
 
             foreach (var gr in synonyms.GroupBy(s => s.Script))
             {
