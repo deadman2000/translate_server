@@ -157,8 +157,9 @@ namespace TranslateServer.Controllers
             return _fixers ??= new()
             {
                 {"twospaces", new RegexReplace("Two Spaces", @"([\.?!])( )([A-ZА-Я\d])", "$1  $3") },
+                {"onespace", new RegexReplace("One Space", @"([\.?!])(  )([A-ZА-Я\d])", "$1 $3") },
                 {"endemptylines", new TrimEnd("Trim End Empty Lines", '\r', '\n') },
-                {"endwhitespaces", new TrimEnd("Trime End Whitespaces") },
+                {"endwhitespaces", new TrimEnd("Trim End Whitespaces") },
                 {"morewhitespaces", new RegexReplace(">2 Whitespaces", @"([\.?!]  )(\s+)", "$1") },
                 {"dash", new RegexReplace("Dash", @" - ", " -- ") },
             };
