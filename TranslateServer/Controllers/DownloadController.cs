@@ -180,6 +180,8 @@ namespace TranslateServer.Controllers
                 // Добавляем в архив пропатченные ресурсы
                 foreach (var res in pathedRes)
                 {
+                    if (addedFiles.Contains(res.FileName.ToLower())) continue;
+
                     var entry = archive.CreateEntry(res.FileName);
                     using var s = entry.Open();
                     var bytes = res.GetPatch();
