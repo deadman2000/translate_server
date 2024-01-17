@@ -585,34 +585,34 @@ namespace TranslateServer.Controllers
 
         private static bool IsTranslate(string str) => str.Any(c => c > 127);
 
-        [HttpPost("gob")]
+        [HttpPost("suff")]
         [AllowAnonymous]
-        public async Task<ActionResult> Gob()
+        public async Task<ActionResult> Suff()
         {
-            var proj = "gobliiins_5";
-            var allTxt = await _texts.Query(t => t.Project == proj);
-            var allTr = await _translate.Query(t => t.Project == proj && !t.Deleted && t.NextId == null);
+            var from_proj = "camelot";
+            var to_proj = "police_quest_2";
 
-            HashSet<string> skip = new();
+            var suffixes = await _suffixes.Query(s => s.Project == from_proj && s.IsTranslate);
+            var exists = await _suffixes.Query(s => s.Project == to_proj && s.IsTranslate);
 
-            foreach (var tr in allTr)
+            foreach (var suff in suffixes)
             {
-                var txt = allTxt.FirstOrDefault(t => t.Volume == tr.Volume && t.Number == tr.Number);
-                if (txt == null) continue;
-                if (skip.Contains(txt.Description)) continue;
+                if (exists.Exists(s => s.Input == suff.Input
+                    && s.InClass == suff.InClass
+                    && s.Output == suff.Output
+                    && s.OutClass == suff.OutClass))
+                    continue;
 
-                var other = allTxt.Where(t => t.Description == txt.Description && t.Volume != txt.Volume);
-
-                foreach (var t2 in other)
+                await _suffixes.Insert(new SuffixDocument
                 {
-                    if (allTr.Exists(t => t.Volume == t2.Volume && t.Number == t2.Number)) continue;
-
-                    await Console.Out.WriteLineAsync($"{txt.Volume} => {t2.Volume}   {txt.Text} {t2.Text} => {tr.Text}");
-                    await _translateService.Submit(proj, t2.Volume, t2.Number, tr.Text, "system", true);
-                    skip.Add(txt.Description);
-                }
+                    Project = to_proj,
+                    InClass = suff.InClass,
+                    Input = suff.Input,
+                    OutClass = suff.OutClass,
+                    Output = suff.Output,
+                    IsTranslate = true
+                });
             }
-
 
             return Ok();
         }
