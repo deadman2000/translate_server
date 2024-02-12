@@ -75,12 +75,13 @@ namespace TranslateServer.Controllers
 
                 foreach (var w in words)
                 {
+                    if (package.GameEncoding.GetBytes(w).Any(c => c < 0x80))
+                        return BadRequest(new { Message = $"Word '{w}' contains wrong symbol" });
+
                     if (wordToIds.TryGetValue(w, out var ids))
                     {
                         if (!request.Gr.HasValue || !ids.Contains((ushort)request.Gr.Value))
-                        {
                             return BadRequest(new { Message = $"Word '{w}' already exists" });
-                        }
                     }
                 }
 
