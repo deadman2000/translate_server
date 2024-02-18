@@ -501,7 +501,7 @@ namespace TranslateServer.Controllers
         [HttpPost("prints/{project}")]
         public async Task<ActionResult> ExtractPrints(string project)
         {
-            _logger.LogInformation($"{project} Begin saids rebuild");
+            _logger.LogInformation($"{project} Begin prints rebuild");
 
             var package = _sci.Load(project);
 
@@ -533,7 +533,31 @@ namespace TranslateServer.Controllers
                     .Execute();
             }
 
-            _logger.LogInformation($"{project} Extract parser completed!");
+            _logger.LogInformation($"{project} Update said prints");
+            var printMap = calls
+                .SelectMany(c => c.Saids.Select(s => new { s, c }))
+                .GroupBy(o => o.s)
+                .ToDictionary(gr => gr.Key,
+                    gr => string.Join(',', gr.Select(o => $"{o.c.Txt}.{o.c.Index}")));
+            foreach (var scr in scripts)
+            {
+                var ss = scr.SaidSection;
+                if (ss == null) continue;
+
+                for (int i = 0; i < ss.Saids.Count; i++)
+                {
+                    var expr = ss.Saids[i];
+                    var prints = printMap.GetValueOrDefault(expr, null);
+                    if (prints != null)
+                    {
+                        await _saids.Update(s => s.Project == project && s.Script == scr.Resource.Number && s.Index == i)
+                            .Set(s => s.Prints, prints)
+                            .Execute();
+                    }
+                }
+            }
+
+            _logger.LogInformation($"{project} Prints rebuild completed!");
 
             return Ok();
         }
