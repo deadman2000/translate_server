@@ -353,14 +353,6 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        static List<string> PrintFuncs(string project)
-        {
-            List<string> proc = new();
-            if (project == "camelot")
-                proc.Add("proc_14");
-            return proc;
-        }
-
         [HttpPost("parser/{project}")]
         public async Task<ActionResult> ExtractParser(string project)
         {
@@ -378,7 +370,7 @@ namespace TranslateServer.Controllers
 
             _logger.LogInformation($"{project} Find prints");
             TextUsageSearch usage = new(package);
-            var calls = usage.FindUsage(PrintFuncs(project));
+            var calls = usage.FindUsage();
 
             _logger.LogInformation($"{project} Setup texts saids");
             foreach (var p in calls)
@@ -501,6 +493,46 @@ namespace TranslateServer.Controllers
             }
 
             await _project.Update(p => p.Code == project).Set(p => p.HasSaid, true).Execute();
+            _logger.LogInformation($"{project} Extract parser completed!");
+
+            return Ok();
+        }
+
+        [HttpPost("prints/{project}")]
+        public async Task<ActionResult> ExtractPrints(string project)
+        {
+            _logger.LogInformation($"{project} Begin saids rebuild");
+
+            var package = _sci.Load(project);
+
+            var scriptRes = package.Scripts
+                .GroupBy(r => r.Number).Select(g => g.First());
+
+            var scripts = scriptRes.Select(r => r.GetScript() as Script)
+                .Where(s => s != null)
+                .ToList();
+            if (!scripts.Any()) return BadRequest();
+
+            _logger.LogInformation($"{project} Find prints");
+            TextUsageSearch usage = new(package);
+            var calls = usage.FindUsage();
+
+            _logger.LogInformation($"{project} Setup texts saids");
+            foreach (var p in calls)
+            {
+                IEnumerable<SaidExpression> saids = p.Saids;
+                foreach (var said in saids)
+                    said.Normalize();
+                saids = saids.Where(s => s.Label != "kiss/angel>");
+
+                var volume = $"text_{p.Txt:D3}";
+                var descr = string.Join('\n', saids.Select(s => s.Label));
+
+                await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == p.Index)
+                    .Set(t => t.Description, descr)
+                    .Execute();
+            }
+
             _logger.LogInformation($"{project} Extract parser completed!");
 
             return Ok();
