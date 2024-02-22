@@ -88,7 +88,7 @@ namespace TranslateServer.Controllers
         [HttpGet("runners")]
         public ActionResult Runners([FromServices] RunnersService runners)
         {
-            return Ok(runners.List().Where(r => r != null));
+            return Ok(runners.List().Where(r => r != null).OrderBy(r => r.Id));
         }
 
         [HttpDelete("runner/{id}")]

@@ -13,8 +13,9 @@ namespace TranslateServer.Store
         {
             if (!IsInit)
             {
-                var indexKeysDefinition = Builders<TextResource>.IndexKeys.Ascending(t => t.Project);
-                _collection.Indexes.CreateOneAsync(new CreateIndexModel<TextResource>(indexKeysDefinition));
+                var projIndex = Builders<TextResource>.IndexKeys.Ascending(t => t.Project);
+                var projVolNumIndex = Builders<TextResource>.IndexKeys.Ascending(t => t.Project).Ascending(t => t.Volume).Ascending(t => t.Number);
+                _collection.Indexes.CreateManyAsync(new CreateIndexModel<TextResource>[] { new(projIndex), new (projVolNumIndex) });
                 IsInit = true;
             }
         }
