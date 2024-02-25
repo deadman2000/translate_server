@@ -29,6 +29,8 @@ public class SaidDocument : Document
     [BsonIgnoreIfNull]
     public string Prints { get; set; }
 
+    public bool? IsValid { get; set; }
+
     [BsonIgnore]
     public SaidValidation Validation { get; set; }
 }

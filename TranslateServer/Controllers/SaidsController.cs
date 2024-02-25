@@ -38,18 +38,12 @@ namespace TranslateServer.Controllers
             _resCache = resCache;
         }
 
-        static bool SaidsValid(SCIPackage package, IEnumerable<SaidDocument> saids)
-        {
-            var tests = saids.Where(s => s.Tests != null && s.Tests.Length > 0);
-            if (!tests.Any()) return true;
-            return tests.All(s => Validate(package, s.Patch, s.Tests).Valid);
-        }
-
         [HttpGet("{project}")]
         public async Task<ActionResult> Scripts(string project)
         {
-            var package = await _resCache.LoadTranslated(project);
             var saids = await _saids.Query(s => s.Project == project);
+
+            await CheckValidation(saids);
 
             var scripts = saids
                 .GroupBy(s => s.Script)
@@ -58,10 +52,25 @@ namespace TranslateServer.Controllers
                     Script = gr.Key,
                     Count = gr.Count(),
                     Approved = gr.Count(s => s.Approved),
-                    Valid = SaidsValid(package, gr)
+                    Valid = gr.All(s => s.IsValid.GetValueOrDefault(true))
                 })
                 .OrderBy(s => s.Script);
             return Ok(scripts);
+        }
+
+        private async Task CheckValidation(List<SaidDocument> saids)
+        {
+            if (!saids.Any()) return;
+
+            var package = await _resCache.LoadTranslated(saids.First().Project);
+
+            foreach (var said in saids.Where(t => t.IsValid == null))
+            {
+                said.IsValid = Validate(package, said.Patch, said.Tests).Valid;
+                await _saids.Update(s => s.Id == said.Id)
+                    .Set(s => s.IsValid, said.IsValid)
+                    .Execute();
+            }
         }
 
         [HttpGet("{project}/{script}")]
@@ -95,14 +104,18 @@ namespace TranslateServer.Controllers
         [HttpPost("update")]
         public async Task<ActionResult> Update(UpdateRequest request)
         {
+            var package = await _resCache.LoadTranslated(request.Project);
+
+            var validation = Validate(package, request.Patch, request.Tests);
+
             await _saids.Update(s => s.Project == request.Project && s.Script == request.Script && s.Index == request.Index)
                 .Set(s => s.Patch, request.Patch)
                 .Set(s => s.Tests, request.Tests)
+                .Set(s => s.IsValid, validation.Valid)
                 .Execute();
 
-            var package = await _resCache.LoadTranslated(request.Project);
             var said = await _saids.Get(s => s.Project == request.Project && s.Script == request.Script && s.Index == request.Index);
-            said.Validation = Validate(package, said.Patch, said.Tests);
+            said.Validation = validation;
             return Ok(said);
         }
 
@@ -163,6 +176,14 @@ namespace TranslateServer.Controllers
 
         private static SaidValidation Validate(SCIPackage package, string said, SaidTest[] tests)
         {
+            if (said == null)
+            {
+                return new()
+                {
+                    Valid = true
+                };
+            }
+
             SaidData[] saidData;
             try
             {
@@ -187,41 +208,48 @@ namespace TranslateServer.Controllers
                 };
             }
 
+            if (tests == null || tests.Length == 0) return new()
+            {
+                Said = saidData.Select(s => s.Hex),
+                SaidTree = saidTree.GetTree("said-tree"),
+                Tests = new List<SaidParsing>(0),
+                Valid = true
+            };
+
             List<SaidParsing> examplesValidations = new();
-            if (tests != null)
-                foreach (var test in tests)
+            foreach (var test in tests)
+            {
+                SaidParsing parsing = new();
+                examplesValidations.Add(parsing);
+
+                var result = parser.Tokenize(test.Said);
+                parsing.Words = result.Words.Select(w => new WordValidation()
                 {
-                    SaidParsing parsing = new();
-                    examplesValidations.Add(parsing);
+                    Word = w.Word,
+                    IsValid = w.IsValid,
+                    Ids = w.Ids?.Select(i => $"{(ushort)i.Class:x3}:{i.Group:x3}")
+                });
 
-                    var result = parser.Tokenize(test.Said);
-                    parsing.Words = result.Words.Select(w => new WordValidation()
+                if (!result.IsValid)
+                {
+                    parsing.Error = "Can't parse word";
+                    parsing.ErrWords = result.Words.Where(w => !w.IsValid).Select(w => w.Word);
+                }
+                else
+                {
+                    var parseTree = parser.ParseGNF(result.Words);
+                    if (parseTree == null)
                     {
-                        Word = w.Word,
-                        IsValid = w.IsValid,
-                        Ids = w.Ids?.Select(i => $"{(ushort)i.Class:x3}:{i.Group:x3}")
-                    });
-
-                    if (!result.IsValid)
-                    {
-                        parsing.Error = "Can't parse word";
-                        parsing.ErrWords = result.Words.Where(w => !w.IsValid).Select(w => w.Word);
+                        parsing.Error = "Can't build parse tree";
                     }
                     else
                     {
-                        var parseTree = parser.ParseGNF(result.Words);
-                        if (parseTree == null)
-                        {
-                            parsing.Error = "Can't build parse tree";
-                        }
-                        else
-                        {
-                            parsing.Match = parser.Match(parseTree, saidTree);
-                            parsing.Success = parsing.Match == test.Positive;
-                            parsing.Tree = parseTree.GetTree("parse-tree");
-                        }
+                        parsing.Match = parser.Match(parseTree, saidTree);
+                        parsing.Success = parsing.Match == test.Positive;
+                        parsing.Tree = parseTree.GetTree("parse-tree");
                     }
                 }
+            }
 
             return new()
             {
