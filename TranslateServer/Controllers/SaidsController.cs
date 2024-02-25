@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Model;
 using TranslateServer.Services;
 using TranslateServer.Store;
@@ -37,16 +38,27 @@ namespace TranslateServer.Controllers
             _resCache = resCache;
         }
 
-        [HttpGet("{project}")]
-        public ActionResult Scripts(string project)
+        static bool SaidsValid(SCIPackage package, IEnumerable<SaidDocument> saids)
         {
-            var scripts = _saids.Queryable().Where(s => s.Project == project)
+            var tests = saids.Where(s => s.Tests != null && s.Tests.Length > 0);
+            if (!tests.Any()) return true;
+            return tests.All(s => Validate(package, s.Patch, s.Tests).Valid);
+        }
+
+        [HttpGet("{project}")]
+        public async Task<ActionResult> Scripts(string project)
+        {
+            var package = await _resCache.LoadTranslated(project);
+            var saids = await _saids.Query(s => s.Project == project);
+
+            var scripts = saids
                 .GroupBy(s => s.Script)
                 .Select(gr => new
                 {
                     Script = gr.Key,
                     Count = gr.Count(),
-                    Approved = gr.Count(s => s.Approved)
+                    Approved = gr.Count(s => s.Approved),
+                    Valid = SaidsValid(package, gr)
                 })
                 .OrderBy(s => s.Script);
             return Ok(scripts);
@@ -65,7 +77,7 @@ namespace TranslateServer.Controllers
             {
                 if (string.IsNullOrEmpty(s.Patch))
                     s.Patch = ss.Saids[s.Index].Label;
-                s.Validation = Validate(package, s.Patch, s.Examples);
+                s.Validation = Validate(package, s.Patch, s.Tests);
             }
 
             return Ok(saids);
@@ -77,7 +89,7 @@ namespace TranslateServer.Controllers
             public int Script { get; set; }
             public int Index { get; set; }
             public string Patch { get; set; }
-            public string[] Examples { get; set; }
+            public SaidTest[] Tests { get; set; }
         }
 
         [HttpPost("update")]
@@ -85,9 +97,12 @@ namespace TranslateServer.Controllers
         {
             await _saids.Update(s => s.Project == request.Project && s.Script == request.Script && s.Index == request.Index)
                 .Set(s => s.Patch, request.Patch)
-                .Set(s => s.Examples, request.Examples)
+                .Set(s => s.Tests, request.Tests)
                 .Execute();
+
+            var package = await _resCache.LoadTranslated(request.Project);
             var said = await _saids.Get(s => s.Project == request.Project && s.Script == request.Script && s.Index == request.Index);
+            said.Validation = Validate(package, said.Patch, said.Tests);
             return Ok(said);
         }
 
@@ -135,18 +150,18 @@ namespace TranslateServer.Controllers
         public class ValidateRequest
         {
             public string Said { get; set; }
-            public string[] Examples { get; set; }
+            public SaidTest[] Tests { get; set; }
         }
 
         [HttpPost("{project}/validate")]
-        public async Task<ActionResult> Validate(string project, ValidateRequest request)
+        public async Task<ActionResult<SaidValidation>> Validate(string project, ValidateRequest request)
         {
             var package = await _resCache.LoadTranslated(project);
-            var validation = Validate(package, request.Said, request.Examples);
+            var validation = Validate(package, request.Said, request.Tests);
             return Ok(validation);
         }
 
-        private static SaidValidation Validate(SCIPackage package, string said, string[] examples)
+        private static SaidValidation Validate(SCIPackage package, string said, SaidTest[] tests)
         {
             SaidData[] saidData;
             try
@@ -173,13 +188,13 @@ namespace TranslateServer.Controllers
             }
 
             List<SaidParsing> examplesValidations = new();
-            if (examples != null)
-                foreach (var text in examples)
+            if (tests != null)
+                foreach (var test in tests)
                 {
                     SaidParsing parsing = new();
                     examplesValidations.Add(parsing);
 
-                    var result = parser.Tokenize(text);
+                    var result = parser.Tokenize(test.Said);
                     parsing.Words = result.Words.Select(w => new WordValidation()
                     {
                         Word = w.Word,
@@ -202,6 +217,7 @@ namespace TranslateServer.Controllers
                         else
                         {
                             parsing.Match = parser.Match(parseTree, saidTree);
+                            parsing.Success = parsing.Match == test.Positive;
                             parsing.Tree = parseTree.GetTree("parse-tree");
                         }
                     }
@@ -211,8 +227,8 @@ namespace TranslateServer.Controllers
             {
                 Said = saidData.Select(s => s.Hex),
                 SaidTree = saidTree.GetTree("said-tree"),
-                Examples = examplesValidations,
-                Valid = examplesValidations.All(v => v.Match)
+                Tests = examplesValidations,
+                Valid = examplesValidations.All(v => v.Success)
             };
         }
 

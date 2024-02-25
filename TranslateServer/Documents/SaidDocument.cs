@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
+using System;
 using TranslateServer.Model;
 
 namespace TranslateServer.Documents;
@@ -19,7 +20,11 @@ public class SaidDocument : Document
     public bool Approved { get; set; }
 
     [BsonIgnoreIfNull]
+    [Obsolete("Use `Tests` instead")]
     public string[] Examples { get; set; }
+
+    [BsonIgnoreIfNull]
+    public SaidTest[] Tests { get; set; }
 
     [BsonIgnoreIfNull]
     public string Prints { get; set; }

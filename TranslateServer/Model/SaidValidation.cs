@@ -8,6 +8,6 @@ public class SaidValidation
     public string ErrWord { get; set; }
     public IEnumerable<string> Said { get; set; }
     public string SaidTree { get; set; }
-    public List<SaidParsing> Examples { get; set; }
+    public List<SaidParsing> Tests { get; set; }
     public bool Valid { get; set; }
 }

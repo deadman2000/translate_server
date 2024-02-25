@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
+using TranslateServer.Model;
 using TranslateServer.Model.Yandex;
 using TranslateServer.Services;
 using TranslateServer.Store;
@@ -27,6 +28,7 @@ namespace TranslateServer.Jobs
         private readonly TextsStore _texts;
         private readonly SCIService _sci;
         private readonly SynonymStore _synonyms;
+        private readonly SaidStore _saids;
 
         public InitJob(ILogger<InitJob> logger,
             UsersStore users,
@@ -35,7 +37,8 @@ namespace TranslateServer.Jobs
             YandexSpellcheck spellcheck,
             TextsStore texts,
             SCIService sci,
-            SynonymStore synonyms)
+            SynonymStore synonyms,
+            SaidStore saids)
         {
             _logger = logger;
             _users = users;
@@ -45,6 +48,7 @@ namespace TranslateServer.Jobs
             _texts = texts;
             _sci = sci;
             _synonyms = synonyms;
+            _saids = saids;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -54,6 +58,7 @@ namespace TranslateServer.Jobs
             await Spellchecking();
             await UpdateNullEngine();
             await SynonymDuplicates();
+            await PatchSaidExamples();
             _logger.LogInformation("Init complete");
         }
 
@@ -193,6 +198,23 @@ namespace TranslateServer.Jobs
             }
 
             _logger.LogInformation("Spell checking done");
+        }
+
+        async Task PatchSaidExamples()
+        {
+#pragma warning disable 612, 618
+            var saids = await _saids.Query(s => s.Examples != null && s.Tests == null);
+            foreach (var said in saids)
+            {
+                await _saids.Update(s => s.Id == said.Id)
+                    .Set(s => s.Tests, said.Examples.Select(t => new SaidTest { Said = t, Positive = true }).ToArray())
+                    .Execute();
+            }
+
+            await _saids.Update(s => s.Examples != null)
+                .Unset(s => s.Examples)
+                .Execute();
+#pragma warning restore 612, 618
         }
     }
 }

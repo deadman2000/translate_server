@@ -32,6 +32,18 @@ namespace TranslateServer.Helpers
             return this;
         }
 
+        public MongoUpdater<T> Unset<TField>(Expression<Func<T, TField>> field)
+        {
+            var s = new ExpressionFieldDefinition<T, TField>(field);
+
+            if (_update == null)
+                _update = Builders<T>.Update.Unset(s);
+            else
+                _update = _update.Unset(s);
+
+            return this;
+        }
+
         public MongoUpdater<T> Inc<TField>(Expression<Func<T, TField>> field, TField value)
         {
             if (_update == null)

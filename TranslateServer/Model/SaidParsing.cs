@@ -8,5 +8,6 @@ public class SaidParsing
     public string Error { get; set; }
     public IEnumerable<string> ErrWords { get; set; }
     public bool Match { get; set; }
+    public bool Success { get; set; }
     public string Tree { get; set; }
 }
