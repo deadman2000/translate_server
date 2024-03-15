@@ -25,7 +25,7 @@ namespace TranslateServer.Store
         {
             List<Resource> resources = new();
             // Выбираем те записи, которые надо добавить или удалить
-            var synonyms = await Query(s => s.Project == project && (s.Delete || s.Index == null));
+            var synonyms = await Query(s => s.Project == project);
 
             foreach (var gr in synonyms.GroupBy(s => s.Script))
             {
@@ -46,11 +46,14 @@ namespace TranslateServer.Store
 
                 foreach (var doc in gr.Where(s => !s.Delete))
                 {
-                    ss.Synonyms.Add(new Synonym
+                    if (!ss.Synonyms.Exists(s => s.WordA == doc.WordA && s.WordB == doc.WordB))
                     {
-                        WordA = doc.WordA,
-                        WordB = doc.WordB
-                    });
+                        ss.Synonyms.Add(new Synonym
+                        {
+                            WordA = doc.WordA,
+                            WordB = doc.WordB
+                        });
+                    }
                 }
 
                 resources.Add(res);
