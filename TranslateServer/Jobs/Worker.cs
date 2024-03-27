@@ -1,6 +1,9 @@
 ﻿using AGSUnpacker.Lib.Translation;
 using Microsoft.Extensions.DependencyInjection;
 using SCI_Lib.Resources;
+using SCI_Lib.Resources.Scripts;
+using SCI_Lib.Resources.Scripts.Elements;
+using SCI_Lib.Resources.Scripts.Sections;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -81,30 +84,57 @@ namespace TranslateServer.Jobs
                 var volume = new Volume(_project, scr.FileName);
                 await _volumes.Insert(volume);
 
+                HashSet<string> needTranslate = new();
+
+                if (scr.GetScript() is Script script)
+                {
+                    foreach (var sec in script.Get<ClassSection>())
+                    {
+                        sec.Prepare();
+                        foreach (var prop in sec.Properties)
+                        {
+                            if (prop.Name != "name" && prop.Reference is StringConst sc)
+                                needTranslate.Add(sc.Value);
+                        }
+                    }
+
+                    foreach (var s in script.AllStrings())
+                    {
+                        if (s.XRefs.Count > 0)
+                            needTranslate.Add(s.Value);
+                    }
+                }
+
                 for (int i = 0; i < strings.Length; i++)
                 {
                     var val = enc.EscapeString(strings[i]);
                     if (!string.IsNullOrWhiteSpace(val))
                     {
-                        var txt = new TextResource(_project, volume, i, val)
-                        {
-                            HasTranslate = true,
-                            TranslateApproved = true
-                        };
-                        await _texts.Insert(txt);
+                        var txt = new TextResource(_project, volume, i, val);
 
-                        await _translates.Insert(new TextTranslate
+                        if (needTranslate.Contains(val))
                         {
-                            Text = txt.Text,
-                            Letters = txt.Letters,
-                            Project = _project.Code,
-                            Volume = volume.Code,
-                            Number = i,
-                            IsTranslate = false,
-                            Author = "system",
-                            Editor = "system",
-                            DateCreate = now,
-                        });
+                            await _texts.Insert(txt);
+                        }
+                        else
+                        {
+                            txt.HasTranslate = true;
+                            txt.TranslateApproved = true;
+                            await _texts.Insert(txt);
+
+                            await _translates.Insert(new TextTranslate
+                            {
+                                Text = txt.Text,
+                                Letters = txt.Letters,
+                                Project = _project.Code,
+                                Volume = volume.Code,
+                                Number = i,
+                                IsTranslate = false,
+                                Author = "system",
+                                Editor = "system",
+                                DateCreate = now,
+                            });
+                        }
                     }
                 }
             }

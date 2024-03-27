@@ -74,7 +74,6 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        //[AllowAnonymous]
         [HttpPost("refresh")]
         public async Task<ActionResult> Refresh()
         {

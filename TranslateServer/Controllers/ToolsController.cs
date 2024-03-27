@@ -23,7 +23,7 @@ namespace TranslateServer.Controllers
     [AuthAdmin]
     [Route("api/[controller]")]
     [ApiController]
-    public class ToolsController : ControllerBase
+    public class ToolsController : ApiController
     {
         private readonly ILogger<ToolsController> _logger;
         private readonly ProjectsStore _project;
@@ -642,7 +642,6 @@ namespace TranslateServer.Controllers
         private static bool IsTranslate(string str) => str.Any(c => c > 127);
 
         [HttpPost("suff")]
-        [AllowAnonymous]
         public async Task<ActionResult> Suff()
         {
             var from_proj = "camelot";
