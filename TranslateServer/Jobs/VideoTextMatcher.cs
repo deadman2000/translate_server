@@ -163,6 +163,8 @@ namespace TranslateServer.Jobs
                 .Set(r => r.Rate, matchRate)
                 .Execute();
 
+
+            // Delete low rate
             var maxScore = await _videoReference.Queryable()
                 .Where(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number)
                 .MaxAsync(r => r.Score);
@@ -171,6 +173,19 @@ namespace TranslateServer.Jobs
             var scoreThr = maxScore * 0.8;
 
             await _videoReference.Delete(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number && r.Score < scoreThr);
+
+            // Trim
+            var cnt = await _videoReference.Queryable()
+                .Where(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number)
+                .CountAsync();
+
+            if (cnt > 5)
+            {
+                var refs = await _videoReference.Query(r => r.Project == vt.Project && r.Volume == m.Volume && r.Number == m.Number);
+                var toDelete = refs.OrderBy(r => r.Score).Take(cnt - 5);
+                foreach (var refer in toDelete)
+                    await _videoReference.DeleteOne(r => r.Id == refer.Id);
+            }
         }
     }
 }

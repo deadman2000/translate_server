@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MongoDB.Driver.Linq;
 using SCI_Lib;
 using SCI_Lib.Analyzer;
 using SCI_Lib.Resources;
@@ -37,6 +38,7 @@ namespace TranslateServer.Controllers
         private readonly SaidStore _saids;
         private readonly SynonymStore _synonyms;
         private readonly TranslateService _translateService;
+        private readonly VideoReferenceStore _videoReference;
 
         public ToolsController(ILogger<ToolsController> logger,
             ProjectsStore project,
@@ -49,7 +51,8 @@ namespace TranslateServer.Controllers
             SuffixesStore suffixes,
             SaidStore saids,
             SynonymStore synonyms,
-            TranslateService translateService
+            TranslateService translateService,
+            VideoReferenceStore videoReference
         )
         {
             _logger = logger;
@@ -64,6 +67,7 @@ namespace TranslateServer.Controllers
             _saids = saids;
             _synonyms = synonyms;
             _translateService = translateService;
+            _videoReference = videoReference;
         }
 
         /// <summary>
@@ -667,6 +671,30 @@ namespace TranslateServer.Controllers
                     Output = suff.Output,
                     IsTranslate = true
                 });
+            }
+
+            return Ok();
+        }
+
+        [AllowAnonymous]
+        [HttpPost("trim_refs")]
+        public async Task<ActionResult> TrimRefs()
+        {
+            var all = await _videoReference.All();
+            var groups = all.GroupBy(r => r.Project + r.Volume + r.Number);
+
+            foreach (var gr in groups)
+            {
+                var cnt = gr.Count();
+                if (cnt > 5)
+                {
+                    var f = gr.First();
+                    Console.WriteLine($"{f.Project} {f.Volume} {f.Number} ---  {cnt}");
+
+                    var toDelete = gr.OrderBy(r => r.Score).Take(cnt - 5);
+                    foreach (var refer in toDelete)
+                        await _videoReference.DeleteOne(r => r.Id == refer.Id);
+                }
             }
 
             return Ok();
