@@ -85,7 +85,7 @@ namespace TranslateServer.Controllers
                 IsTranslate = true,
             };
             await _suffixes.Insert(doc);
-            _resCache.Clear(project);
+            _resCache.ClearTranslated(project);
             return Ok(doc);
         }
 
@@ -103,7 +103,7 @@ namespace TranslateServer.Controllers
                 .Set(s => s.OutClass, request.OutCl)
                 .Set(s => s.Output, request.Out)
                 .Execute();
-            _resCache.Clear(project);
+            _resCache.ClearTranslated(project);
             var suff = await _suffixes.GetById(id);
             return Ok(suff);
         }
@@ -112,7 +112,7 @@ namespace TranslateServer.Controllers
         [HttpDelete("{project}/{id}")]
         public async Task<ActionResult> Delete(string project, string id)
         {
-            _resCache.Clear(project);
+            _resCache.ClearTranslated(project);
             await _suffixes.DeleteOne(s => s.Id == id && s.Project == project);
             return Ok();
         }

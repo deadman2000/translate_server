@@ -80,9 +80,6 @@ namespace TranslateServer
 
             services.AddSingleton<RunnersService>();
             services.AddSingleton<ResCache>();
-            services.AddSingleton<ExternalApprover>();
-
-            services.AddHostedService<UdpHost>();
 
             if (!Configuration.GetValue("DisableJobs", false))
             {

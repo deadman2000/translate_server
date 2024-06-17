@@ -63,7 +63,7 @@ namespace TranslateServer.Controllers
 
                 var id = Word.GetId((ushort)request.Gr.Value, (ushort)request.Cl);
                 await _words.Delete(w => w.Project == project && w.IsTranslate && w.WordId == id);
-                _resCache.Clear(project);
+                _resCache.ClearTranslated(project);
                 return Ok();
             }
             else
@@ -94,7 +94,7 @@ namespace TranslateServer.Controllers
                      .Upsert();
 
                 var word = await GetWord(project, id);
-                _resCache.Clear(project);
+                _resCache.ClearTranslated(project);
                 return Ok(word);
             }
         }

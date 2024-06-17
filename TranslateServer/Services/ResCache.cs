@@ -10,34 +10,49 @@ namespace TranslateServer.Services
     public class ResCache
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly ConcurrentDictionary<string, SCIPackage> _sciCache = new();
+        private readonly ConcurrentDictionary<string, SCIPackage> _sourceCache = new();
+        private readonly ConcurrentDictionary<string, SCIPackage> _translatedCache = new();
 
         public ResCache(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
         }
 
+        public SCIPackage Load(string project)
+        {
+            if (_sourceCache.TryGetValue(project, out var package)) return package;
+
+            using var scope = _serviceProvider.CreateScope();
+            var sci = scope.ServiceProvider.GetRequiredService<SCIService>();
+
+            package = sci.Load(project);
+
+            _sourceCache[project] = package;
+
+            return package;
+        }
+
         public async Task<SCIPackage> LoadTranslated(string project)
         {
+            if (_translatedCache.TryGetValue(project, out var package)) return package;
+
             using var scope = _serviceProvider.CreateScope();
             var sci = scope.ServiceProvider.GetRequiredService<SCIService>();
             var words = scope.ServiceProvider.GetRequiredService<WordsStore>();
             var suffixes = scope.ServiceProvider.GetRequiredService<SuffixesStore>();
 
-            if (_sciCache.TryGetValue(project, out var package)) return package;
-
             package = sci.Load(project);
             await words.Apply(package, project);
             await suffixes.Apply(package, project);
 
-            _sciCache[project] = package;
+            _translatedCache[project] = package;
 
             return package;
         }
 
-        public void Clear(string project)
+        public void ClearTranslated(string project)
         {
-            _sciCache.TryRemove(project, out var _);
+            _translatedCache.TryRemove(project, out var _);
         }
     }
 }

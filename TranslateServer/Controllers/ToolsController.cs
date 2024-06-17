@@ -276,7 +276,7 @@ namespace TranslateServer.Controllers
                     {
                         if (op.Name == "callb")
                         {
-                            if ((byte)op.Arguments[0] == 0x19 && (byte)op.Arguments[1] == 2)
+                            if (op.GetByte(0) == 0x19 && op.GetByte(1) == 2)
                             {
                                 var r = op.Prev.Prev.Arguments[0] as CodeRef;
                                 var s = r.Reference as StringConst;
