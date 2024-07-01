@@ -34,11 +34,12 @@ namespace TranslateServer.Store
             public int L { get; set; }
         }
 
-        public async Task<ChartRow[]> GetChart(string login)
+        public async Task<ChartRow[]> GetChart(string login, string project = null)
         {
-            var translates = await Query(t => t.Author == login && t.FirstId == null && !t.Deleted);
+            var translates = await Query(t => t.Author == login && t.FirstId == null && !t.Deleted && (project == null || t.Project == project));
             var result = translates.Distinct(TextTranslate.Comparer)
                 .GroupBy(t => t.DateCreate.Date)
+                .OrderBy(g => g.Key)
                 .Select(g => new ChartRow
                 {
                     D = ((DateTimeOffset)g.Key).ToUnixTimeSeconds(),

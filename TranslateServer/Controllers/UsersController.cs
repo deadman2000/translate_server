@@ -112,6 +112,16 @@ namespace TranslateServer.Controllers
         }
 
         [AuthAdmin]
+        [HttpGet("{id}/chart/{project}")]
+        public async Task<ActionResult> GetChartByProject(string id, string project, [FromServices] TranslateStore translate)
+        {
+            var user = await _users.GetById(id);
+            if (user == null) return NotFound();
+            var chart = await translate.GetChart(user.Login, project);
+            return Ok(chart);
+        }
+
+        [AuthAdmin]
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {
