@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
@@ -380,6 +381,40 @@ namespace TranslateServer.Controllers
                 .Set(p => p.Shared, request.Share)
                 .Execute();
             return Ok();
+        }
+
+        static bool HasWrongSymbol(string text, Encoding enc, out string newText)
+        {
+            var bytes = enc.GetBytes(text);
+            newText = enc.GetString(bytes);
+            return newText != text;
+        }
+
+        [HttpGet("{project}/validate")]
+        public async Task<ActionResult> Validate(string project)
+        {
+            var translates = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
+
+            // Symbols check
+            var enc = Encoding.GetEncoding(866);
+            List<dynamic> symbols = new();
+            foreach (var t in translates)
+            {
+                if (HasWrongSymbol(t.Text, enc, out string converted))
+                    symbols.Add(new
+                    {
+
+                        t.Volume,
+                        t.Number,
+                        t.Text,
+                        converted
+                    });
+            }
+
+            return Ok(new
+            {
+                symbols
+            });
         }
     }
 }

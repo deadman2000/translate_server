@@ -2,6 +2,8 @@
 using MongoDB.Driver;
 using Quartz;
 using SCI_Lib.Resources;
+using SCI_Lib.Resources.Scripts;
+using SCI_Lib.Resources.Scripts.Sections;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -54,12 +56,72 @@ namespace TranslateServer.Jobs
         public async Task Execute(IJobExecutionContext context)
         {
             await UsersInit();
+
+            //await CheckDublicates("longbow_1_1");
             //await EscapeStrings();
+            //await UpdateNullEngine();
+            //await RepairHasTranslate("larry_5");
+
             await Spellchecking();
-            await UpdateNullEngine();
             await SynonymDuplicates();
             await PatchSaidExamples();
             _logger.LogInformation("Init complete");
+        }
+
+        private async Task RepairHasTranslate(string project)
+        {
+            var allTranslates = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null);
+
+            var trMap = allTranslates.Select(t => $"{t.Volume}.{t.Number}").ToHashSet();
+
+            var allTexts = await _texts.Query(t => t.Project == project);
+            foreach (var txt in allTexts)
+            {
+                string k = $"{txt.Volume}.{txt.Number}";
+                var hasTranslate = trMap.Contains(k);
+                if (txt.HasTranslate != hasTranslate)
+                {
+                    await Console.Out.WriteLineAsync($"Fixed {txt.Volume} {txt.Number} {txt.Text} {hasTranslate}");
+                    await _texts.Update(t => t.Id == txt.Id).Set(t => t.HasTranslate, hasTranslate).Execute();
+                }
+                if (!hasTranslate && txt.TranslateApproved)
+                {
+                    await Console.Out.WriteLineAsync($"Fixed approve {txt.Volume} {txt.Number} {txt.Text}");
+                    await _texts.Update(t => t.Id == txt.Id).Set(t => t.TranslateApproved, false).Execute();
+                }
+            }
+            await Console.Out.WriteLineAsync($"Fix RepairHasTranslate Completed");
+        }
+
+        private async Task RemoveTalkerSrc(string project)
+        {
+            var package = _sci.Load(project);
+            foreach (var res in package.GetResources<ResScript>())
+            {
+                var scr = res.GetScript() as Script;
+                var instances = scr.Get<ClassSection>().Where(c => c.SuperClass != null && c.SuperClass.Name == "Talker");
+                if (instances.Any())
+                {
+                    var names = instances.Select(i => i.Name).ToHashSet();
+
+                    var vol = Volume.FileNameToCode(res.FileName);
+
+                    var trs = await _translate.Query(t => t.Project == project && t.Volume == vol && !t.Deleted && t.NextId == null && !t.IsTranslate);
+                    foreach (var tr in trs)
+                    {
+                        if (names.Contains(tr.Text))
+                        {
+                            await _translate.DeleteOne(t => t.Id == tr.Id);
+                            await _texts.Update(t => t.Project == project && t.Volume == tr.Volume && t.Number == tr.Number)
+                                .Set(t => t.HasTranslate, false)
+                                .Execute();
+                            await Console.Out.WriteLineAsync($"{tr.Volume} {tr.Number} {tr.Text}");
+                        }
+                    }
+                }
+            }
+
+            await Console.Out.WriteLineAsync();
         }
 
         private async Task SynonymDuplicates()
@@ -79,6 +141,59 @@ namespace TranslateServer.Jobs
             var projects = await _projects.All();
             foreach (var proj in projects)
                 await Escape(proj.Code);
+        }
+
+        private async Task SetupIsTranslate(string project)
+        {
+            //private static bool IsTranslate(string str) => str.Any(c => c > 127);
+            var translates = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null && !t.IsTranslate);
+            foreach (var tx in translates)
+            {
+                if (tx.Text.Any(c => c > 127))
+                {
+                    await Console.Out.WriteLineAsync(tx.Text);
+                    await _translate.Update(t => t.Id == tx.Id).Set(t => t.IsTranslate, true).Execute();
+                }
+            }
+        }
+
+        private async Task CheckDublicates(string project)
+        {
+            await SetupIsTranslate(project);
+            var translates = await _translate.Query(t => t.Project == project && !t.Deleted && t.NextId == null && t.IsTranslate);
+
+            // Multiple check
+            var multipleTranslate = translates.Select(t => new { VN = t.Volume + t.Number, t })
+                .GroupBy(v => v.VN)
+                .Where(g => g.Count() > 1);
+            if (multipleTranslate.Any())
+            {
+                foreach (var gr in multipleTranslate)
+                {
+                    await Console.Out.WriteLineAsync(gr.Key);
+                    foreach (var v in gr)
+                    {
+                        await Console.Out.WriteLineAsync(v.t.Text);
+                    }
+                }
+                return;
+            }
+
+            var texts = await _texts.Query(t => t.Project == project);
+            var dublicateSources = texts.GroupBy(t => t.Text).Where(g => g.Count() > 1);
+            foreach (var gr in dublicateSources)
+            {
+                var h = gr.Select(t => t.Volume + t.Number).ToHashSet();
+                var trs = translates.Where(t => h.Contains(t.Volume + t.Number)).ToList();
+                if (trs.Select(t => t.Text).Distinct().Count() > 1)
+                {
+                    await Console.Out.WriteLineAsync(gr.Key);
+                    foreach (var tr in trs)
+                        await Console.Out.WriteLineAsync($"   {tr.Volume} {tr.Number} {tr.Text}");
+                }
+            }
+
+            await Console.Out.WriteLineAsync();
         }
 
 

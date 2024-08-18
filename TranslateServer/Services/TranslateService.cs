@@ -122,7 +122,7 @@ namespace TranslateServer.Services
             if (txt == null)
                 return null;
 
-            text = text.TrimEnd('\r', '\n');
+            //text = text.TrimEnd('\r', '\n');
 
             IEnumerable<SpellResult> spellcheck;
             if (text != txt.Text)
