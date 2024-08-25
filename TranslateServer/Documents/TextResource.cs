@@ -49,5 +49,7 @@ namespace TranslateServer.Documents
         public double? MaxScore { get; set; }
 
         public string Description { get; set; }
+
+        public string GetCode() => $"{Volume}-{Number}";
     }
 }

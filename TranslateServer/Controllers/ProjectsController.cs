@@ -390,13 +390,20 @@ namespace TranslateServer.Controllers
             return newText != text;
         }
 
+        static int LineCount(string text)
+        {
+            return text.Count(c => c == '\n');
+        }
+
         [HttpGet("{project}/validate")]
         public async Task<ActionResult> Validate(string project)
         {
+            var texts = await _texts.Query(t => t.Project == project);
+            var textsDict = texts.ToDictionary(t => t.GetCode(), t => t);
             var translates = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
+            var enc = Encoding.GetEncoding(866);
 
             // Symbols check
-            var enc = Encoding.GetEncoding(866);
             List<dynamic> symbols = new();
             foreach (var t in translates)
             {
@@ -406,14 +413,33 @@ namespace TranslateServer.Controllers
 
                         t.Volume,
                         t.Number,
-                        t.Text,
+                        tr = t.Text,
                         converted
+                    });
+            }
+
+
+            // Line count check
+            List<dynamic> lines = new();
+            foreach (var t in translates)
+            {
+                var src = textsDict[t.GetCode()];
+
+                if (LineCount(t.Text) != LineCount(src.Text))
+                    lines.Add(new
+                    {
+
+                        t.Volume,
+                        t.Number,
+                        tr = BaseEscaper.Slash.Escape(t.Text),
+                        src = BaseEscaper.Slash.Escape(src.Text)
                     });
             }
 
             return Ok(new
             {
-                symbols
+                symbols,
+                lines
             });
         }
     }

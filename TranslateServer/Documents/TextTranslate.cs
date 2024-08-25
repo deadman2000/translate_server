@@ -42,6 +42,8 @@ namespace TranslateServer.Documents
 
         public bool IsTranslate { get; set; }
 
+        public string GetCode() => $"{Volume}-{Number}";
+
         class TextTranslateComparer : IEqualityComparer<TextTranslate>
         {
             public bool Equals(TextTranslate x, TextTranslate y) => x.Project == y.Project && x.Volume == y.Volume && x.Number == y.Number;
