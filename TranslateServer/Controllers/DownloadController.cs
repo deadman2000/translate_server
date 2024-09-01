@@ -150,12 +150,12 @@ namespace TranslateServer.Controllers
             foreach (var p in patches)
             {
                 var data = await _patches.GetContent(p.FileId);
-                try
+                if (IsPatchTranslate(p.FileName))
                 {
                     var res = package.SetPatch(p.FileName, data);
                     pathedRes.Add(res);
                 }
-                catch // Это не SCI ресурс
+                else
                 {
                     additionalFiles.Add(p.FileName, data);
                 }
@@ -177,6 +177,19 @@ namespace TranslateServer.Controllers
             {
                 HashSet<string> addedFiles = new();
 
+                // Добавляем в архив дополнительные патчи
+                foreach (var kv in additionalFiles)
+                {
+                    var file = kv.Key;
+                    if (addedFiles.Contains(file.ToLower())) continue;
+
+                    var entry = archive.CreateEntry(file);
+                    using var s = entry.Open();
+                    s.Write(kv.Value);
+
+                    addedFiles.Add(file.ToLower());
+                }
+
                 // Добавляем в архив пропатченные ресурсы
                 foreach (var res in pathedRes)
                 {
@@ -186,16 +199,8 @@ namespace TranslateServer.Controllers
                     using var s = entry.Open();
                     var bytes = res.GetPatch();
                     res.Save(s, bytes);
-                    addedFiles.Add(res.FileName.ToLower());
-                }
 
-                // Добавляем в архив дополнительные патчи
-                foreach (var kv in additionalFiles)
-                {
-                    var entry = archive.CreateEntry(kv.Key);
-                    using var s = entry.Open();
-                    s.Write(kv.Value);
-                    addedFiles.Add(kv.Key.ToLower());
+                    addedFiles.Add(res.FileName.ToLower());
                 }
 
                 // Добавляем в архив остальные ресурсы
@@ -222,5 +227,20 @@ namespace TranslateServer.Controllers
             Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
             await ms.CopyToAsync(Response.Body);
         }
+
+        /// <summary>
+        /// Возвращает true, если файл надо применить до перевода (например скрипт или текст)
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
+        private static bool IsPatchTranslate(string fileName) => Path.GetExtension(fileName).ToLower() switch
+        {
+            ".scr" or ".tex" => true,
+            _ => Path.GetFileNameWithoutExtension(fileName).ToLower() switch
+            {
+                "script" or "text" => true,
+                _ => false,
+            },
+        };
     }
 }
