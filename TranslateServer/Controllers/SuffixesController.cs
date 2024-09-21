@@ -147,5 +147,24 @@ namespace TranslateServer.Controllers
 
             return Ok(result.Order());
         }
+
+        [HttpPost("{project}/copy/{src}")]
+        public async Task<ActionResult> Copy(string project, string src)
+        {
+            var sourceSuff = await _suffixes.Query(s => s.Project == src && s.IsTranslate);
+
+            if (!sourceSuff.Any())
+                return Ok();
+
+            await _suffixes.Delete(s => s.Project == project && s.IsTranslate);
+            sourceSuff.ForEach(s =>
+            {
+                s.Id = null;
+                s.Project = project;
+            });
+            await _suffixes.Insert(sourceSuff);
+
+            return Ok();
+        }
     }
 }

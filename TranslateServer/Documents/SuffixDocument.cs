@@ -1,6 +1,4 @@
-﻿using SCI_Lib.Resources.Vocab;
-
-namespace TranslateServer.Documents
+﻿namespace TranslateServer.Documents
 {
     public class SuffixDocument : Document
     {
