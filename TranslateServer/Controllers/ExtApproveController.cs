@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SCI_Lib.Resources;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Services;
 using TranslateServer.Store;
 
@@ -36,28 +37,29 @@ namespace TranslateServer.Controllers
         {
             string volume;
             int index;
+            var package = _resCache.Load(request.Project);
 
             if (request.Type == "msg")
             {
-                var _package = _resCache.Load(request.Project);
-
-                var msg = _package.GetResource<ResMessage>(request.Res);
+                var msg = package.GetResource<ResMessage>(request.Res);
                 index = msg.GetMessages().FindIndex(m => m.Noun == request.Noun.Value && m.Verb == request.Verb.Value);
 
                 if (index == -1)
                     return NotFound();
 
-                volume = $"{request.Res}_msg";
+                volume = Volume.FileNameToCode(msg.FileName);
             }
             else
             {
                 index = request.Index.Value;
+                ResType t;
                 if (request.Type == "scr")
-                    volume = $"{request.Res}_scr";
+                    t = ResType.Script;
                 else if (request.Type == "txt")
-                    volume = $"{request.Res}_tex";
+                    t = ResType.Text;
                 else
                     return BadRequest();
+                volume = Volume.FileNameToCode(package.GetResFileName(t, request.Res));
             }
 
             await _textsStore.Update()
