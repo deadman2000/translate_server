@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Model.Yandex;
+using TranslateServer.Services;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
@@ -15,10 +16,12 @@ namespace TranslateServer.Controllers
     public class SpellcheckController : ControllerBase
     {
         private readonly TranslateStore _translate;
+        private readonly SpellcheckCache _cache;
 
-        public SpellcheckController(TranslateStore translate)
+        public SpellcheckController(TranslateStore translate, SpellcheckCache cache)
         {
             _translate = translate;
+            _cache = cache;
         }
 
         [HttpGet("{project}")]
@@ -48,12 +51,13 @@ namespace TranslateServer.Controllers
         [HttpPost("skip")]
         public async Task<ActionResult> Skip(SkipRequest request)
         {
+            var tr = await _translate.GetById(request.Id);
+            _cache.ResetTotal(tr.Project);
             if (!string.IsNullOrEmpty(request.Word))
             {
-                var tr = await _translate.GetById(request.Id);
                 var spellcheck = tr.Spellcheck.Where(s => s.Word != request.Word).ToArray();
 
-                await _translate.Update(t => t.Id == request.Id)
+                var res = await _translate.Update(t => t.Id == request.Id)
                     .Set(t => t.Spellcheck, spellcheck)
                     .Execute();
             }
@@ -67,13 +71,10 @@ namespace TranslateServer.Controllers
         }
 
         [HttpGet("{project}/total")]
-        public ActionResult GetTotal(string project)
+        public async Task<ActionResult> GetTotal(string project)
         {
-            var count = _translate.Queryable()
-                .Where(t => t.Project == project && !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Any())
-                .Count();
+            var count = await _cache.GetTotal(project);
             return Ok(new { total = count});
         }
-
     }
 }

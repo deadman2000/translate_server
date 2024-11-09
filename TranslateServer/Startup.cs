@@ -80,6 +80,7 @@ namespace TranslateServer
 
             services.AddSingleton<RunnersService>();
             services.AddSingleton<ResCache>();
+            services.AddSingleton<SpellcheckCache>();
 
             if (!Configuration.GetValue("DisableJobs", false))
             {

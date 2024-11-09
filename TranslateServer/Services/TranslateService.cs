@@ -17,8 +17,15 @@ namespace TranslateServer.Services
         private readonly ProjectsStore _projects;
         private readonly SearchService _search;
         private readonly YandexSpellcheck _spellcheck;
+        private readonly SpellcheckCache _spellcheckCache;
 
-        public TranslateService(TranslateStore translate, TextsStore texts, VolumesStore volumes, ProjectsStore projects, SearchService search, YandexSpellcheck spellcheck)
+        public TranslateService(TranslateStore translate,
+            TextsStore texts,
+            VolumesStore volumes,
+            ProjectsStore projects,
+            SearchService search,
+            YandexSpellcheck spellcheck,
+            SpellcheckCache spellcheckCache)
         {
             _translate = translate;
             _texts = texts;
@@ -26,6 +33,7 @@ namespace TranslateServer.Services
             _projects = projects;
             _search = search;
             _spellcheck = spellcheck;
+            _spellcheckCache = spellcheckCache;
         }
 
         public async Task UpdateVolumeTotal(string project, string volume)
@@ -195,6 +203,8 @@ namespace TranslateServer.Services
             if (prevTranslateId != null)
                 await _search.DeleteTranslate(prevTranslateId);
             await _search.IndexTranslate(translate);
+
+            _spellcheckCache.ResetTotal(project);
 
             return translate;
         }

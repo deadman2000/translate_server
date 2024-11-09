@@ -31,6 +31,7 @@ namespace TranslateServer.Jobs
         private readonly SCIService _sci;
         private readonly SynonymStore _synonyms;
         private readonly SaidStore _saids;
+        private readonly SpellcheckCache _spellcheckCache;
 
         public InitJob(ILogger<InitJob> logger,
             UsersStore users,
@@ -40,7 +41,8 @@ namespace TranslateServer.Jobs
             TextsStore texts,
             SCIService sci,
             SynonymStore synonyms,
-            SaidStore saids)
+            SaidStore saids,
+            SpellcheckCache spellcheckCache)
         {
             _logger = logger;
             _users = users;
@@ -51,6 +53,7 @@ namespace TranslateServer.Jobs
             _sci = sci;
             _synonyms = synonyms;
             _saids = saids;
+            _spellcheckCache = spellcheckCache;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -312,6 +315,7 @@ namespace TranslateServer.Jobs
                 }
             }
 
+            _spellcheckCache.ResetTotal();
             _logger.LogInformation("Spell checking done");
         }
 
