@@ -73,7 +73,7 @@ namespace TranslateServer.Controllers
         [HttpGet("{project}/total")]
         public async Task<ActionResult> GetTotal(string project)
         {
-            var count = await _cache.GetTotal(project);
+            var count = await _cache.GetTotal(_translate, project);
             return Ok(new { total = count});
         }
     }

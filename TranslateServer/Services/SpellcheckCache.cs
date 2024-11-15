@@ -9,20 +9,14 @@ namespace TranslateServer.Services
 {
     public class SpellcheckCache
     {
-        private readonly TranslateStore _translate;
         private readonly ConcurrentDictionary<string, int> _totals = new();
 
-        public SpellcheckCache(TranslateStore translate)
-        {
-            _translate = translate;
-        }
-
-        public async Task<int> GetTotal(string project)
+        public async Task<int> GetTotal(TranslateStore store, string project)
         {
             if (_totals.TryGetValue(project, out int count))
                 return count;
 
-            count = await _translate.Queryable()
+            count = await store.Queryable()
                 .Where(t => t.Project == project && !t.Deleted && t.NextId == null && t.Spellcheck != null && t.Spellcheck.Any())
                 .CountAsync();
 

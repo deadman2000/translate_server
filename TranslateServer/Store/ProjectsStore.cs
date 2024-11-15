@@ -39,10 +39,13 @@ namespace TranslateServer.Store
                 })
                 .FirstOrDefaultAsync();
 
-            await Update(p => p.Code == shortName)
-                .Set(p => p.Letters, res.Total)
-                .Set(p => p.Texts, res.Count)
-                .Execute();
+            if (res != null)
+            {
+                await Update(p => p.Code == shortName)
+                    .Set(p => p.Letters, res.Total)
+                    .Set(p => p.Texts, res.Count)
+                    .Execute();
+            }
         }
 
         public Task<List<Project>> Shared()

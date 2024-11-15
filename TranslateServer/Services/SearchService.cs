@@ -26,6 +26,8 @@ namespace TranslateServer.Services
 
         public Task InsertTexts(List<TextResource> texts)
         {
+            if (!texts.Any()) return Task.CompletedTask;
+
             return _client.IndexManyAsync(texts.Select(t =>
                 new TextIndex
                 {

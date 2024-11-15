@@ -163,6 +163,12 @@ namespace TranslateServer.Jobs
 
         private async Task ExtractAGS()
         {
+            await ExtractTRA();
+            await ExtractTRS();
+        }
+
+        private async Task ExtractTRA()
+        {
             var path = _sci.GetProjectPath(_project.Code);
             var traFiles = Directory.GetFiles(path, "*.tra", SearchOption.AllDirectories);
 
@@ -185,6 +191,27 @@ namespace TranslateServer.Jobs
                     {
                         Description = fr
                     });
+                }
+            }
+        }
+
+        private async Task ExtractTRS()
+        {
+            var path = _sci.GetProjectPath(_project.Code);
+            var trsFiles = Directory.GetFiles(path, "*.trs", SearchOption.AllDirectories);
+
+            foreach (var filePath in trsFiles)
+            {
+                AGSTranslation translation = AGSTranslation.ReadSourceFile(filePath);
+
+                var name = Path.GetFileName(filePath);
+                var volume = new Volume(_project, name);
+                await _volumes.Insert(volume);
+
+                for (int i = 0; i < translation.OriginalLines.Count; i++)
+                {
+                    var en = translation.OriginalLines[i].Replace("[", "\n");
+                    await _texts.Insert(new TextResource(_project, volume, i, en));
                 }
             }
         }

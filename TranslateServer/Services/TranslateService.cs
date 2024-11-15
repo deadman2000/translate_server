@@ -96,10 +96,13 @@ namespace TranslateServer.Services
                 })
                 .FirstOrDefaultAsync();
 
-            await _projects.Update(p => p.Code == project)
-                .Set(p => p.Letters, res.Letters)
-                .Set(p => p.Texts, res.Count)
-                .Execute();
+            if (res != null)
+            {
+                await _projects.Update(p => p.Code == project)
+                    .Set(p => p.Letters, res.Letters)
+                    .Set(p => p.Texts, res.Count)
+                    .Execute();
+            }
         }
 
         public async Task UpdateProjectProgress(string project)
@@ -116,12 +119,15 @@ namespace TranslateServer.Services
                 })
                 .FirstOrDefaultAsync();
 
-            await _projects.Update(p => p.Code == project)
-                .Set(p => p.TranslatedLetters, res.Letters)
-                .Set(p => p.TranslatedTexts, res.Count)
-                .Set(p => p.ApprovedLetters, res.ALetters)
-                .Set(p => p.ApprovedTexts, res.ACount)
-                .Execute();
+            if (res != null)
+            {
+                await _projects.Update(p => p.Code == project)
+                    .Set(p => p.TranslatedLetters, res.Letters)
+                    .Set(p => p.TranslatedTexts, res.Count)
+                    .Set(p => p.ApprovedLetters, res.ALetters)
+                    .Set(p => p.ApprovedTexts, res.ACount)
+                    .Execute();
+            }
         }
 
         public async Task<TextTranslate> Submit(string project, string volume, int number, string text, string author, bool approveTransfer, string prevTranslateId = null)

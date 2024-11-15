@@ -100,22 +100,53 @@ namespace TranslateServer.Controllers
 
                 foreach (var vol in volumes)
                 {
-                    AGSTranslation translation = new();
-                    translation.Decompile(Path.Combine(path, vol.Name, "English.tra"));
+                    if (vol.Name.ToLower().EndsWith(".trs"))
+                    {
+                        var trsPath = Path.Combine(path, vol.Name);
+                        AGSTranslation translation = AGSTranslation.ReadSourceFile(trsPath);
 
-                    var texts = await _translate.Query(t => t.Project == project && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
-                    foreach (var t in texts)
-                        translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+                        var texts = await _translate.Query(t => t.Project == project && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+                        foreach (var t in texts)
+                            translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
 
-                    var entry = archive.CreateEntry($"{vol.Name}/Russian.tra");
+                        string traPath;
+                        if (volumes.Count > 1)
+                            traPath = Path.GetFileNameWithoutExtension(vol.Name) + ".tra";
+                        else
+                            traPath = "Russian.tra";
+                        var entry = archive.CreateEntry(traPath);
 
-                    var msTRA = new MemoryStream();
-                    translation.TranslateEncoding = Encoding.GetEncoding(1251);
-                    translation.Compile(msTRA);
-                    msTRA.Seek(0, SeekOrigin.Begin);
+                        var msTRA = new MemoryStream();
+                        translation.TranslateEncoding = Encoding.GetEncoding(1251);
+                        translation.Compile(msTRA);
+                        msTRA.Seek(0, SeekOrigin.Begin);
 
-                    using var s = entry.Open();
-                    msTRA.CopyTo(s);
+                        using var s = entry.Open();
+                        msTRA.CopyTo(s);
+                    }
+                    else
+                    {
+                        var traPath = Path.Combine(path, vol.Name, "English.tra");
+                        if (Path.Exists(traPath))
+                        {
+                            AGSTranslation translation = new();
+                            translation.Decompile(traPath);
+
+                            var texts = await _translate.Query(t => t.Project == project && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+                            foreach (var t in texts)
+                                translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+
+                            var entry = archive.CreateEntry($"{vol.Name}/Russian.tra");
+
+                            var msTRA = new MemoryStream();
+                            translation.TranslateEncoding = Encoding.GetEncoding(1251);
+                            translation.Compile(msTRA);
+                            msTRA.Seek(0, SeekOrigin.Begin);
+
+                            using var s = entry.Open();
+                            msTRA.CopyTo(s);
+                        }
+                    }
                 }
 
                 var patches = (await _patches.Query(p => p.Project == project && !p.Deleted)).ToList();
@@ -136,6 +167,7 @@ namespace TranslateServer.Controllers
             Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
             await ms.CopyToAsync(Response.Body);
         }
+
 
         private async Task GenerateSCIZip(Project proj, bool full)
         {
