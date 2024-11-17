@@ -46,7 +46,7 @@ namespace TranslateServer.Jobs
 
         public async Task ExtractSCI()
         {
-            _package = _sci.Load(_project.Code);
+            _package = _sci.Load(_project);
             var enc = _package.GameEncoding;
             var now = DateTime.UtcNow;
 

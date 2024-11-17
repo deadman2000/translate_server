@@ -56,11 +56,13 @@ namespace TranslateServer.Helpers
 
         public Task<UpdateResult> Execute()
         {
+            if (_update == null) return Task.FromResult<UpdateResult>(null);
             return _collection.UpdateOneAsync(_filter, _update);
         }
 
         public Task<UpdateResult> ExecuteMany()
         {
+            if (_update == null) return Task.FromResult<UpdateResult>(null);
             return _collection.UpdateManyAsync(_filter, _update);
         }
 

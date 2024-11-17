@@ -122,7 +122,7 @@ namespace TranslateServer.Jobs
         {
             try
             {
-                var package = _sci.Load(project.Code);
+                var package = _sci.Load(project);
                 if (package is not SCI0Package) return;
 
                 var search = new TextUsageSearch(package);

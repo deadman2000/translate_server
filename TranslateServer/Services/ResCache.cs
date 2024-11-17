@@ -18,14 +18,14 @@ namespace TranslateServer.Services
             _serviceProvider = serviceProvider;
         }
 
-        public SCIPackage Load(string project)
+        public async Task<SCIPackage> Load(string project)
         {
             if (_sourceCache.TryGetValue(project, out var package)) return package;
 
             using var scope = _serviceProvider.CreateScope();
             var sci = scope.ServiceProvider.GetRequiredService<SCIService>();
 
-            package = sci.Load(project);
+            package = await sci.Load(project);
 
             _sourceCache[project] = package;
 
@@ -41,7 +41,7 @@ namespace TranslateServer.Services
             var words = scope.ServiceProvider.GetRequiredService<WordsStore>();
             var suffixes = scope.ServiceProvider.GetRequiredService<SuffixesStore>();
 
-            package = sci.Load(project);
+            package = await sci.Load(project);
             await words.Apply(package, project);
             await suffixes.Apply(package, project);
 

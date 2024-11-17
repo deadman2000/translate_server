@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Helpers;
@@ -70,6 +71,12 @@ namespace TranslateServer.Controllers
             _videoReference = videoReference;
         }
 
+        [HttpGet("encodings")]
+        public ActionResult GetEncodings()
+        {
+            return Ok(Encoding.GetEncodings().Select(e => new { e.Name, e.DisplayName }));
+        }
+
         /// <summary>
         /// Переносит перевод с одного проекта в другой
         /// </summary>
@@ -83,13 +90,92 @@ namespace TranslateServer.Controllers
 
             //await _translate.Delete(t => t.Project == to);
             var srcTexts = await _texts.Query(t => t.Project == from);
-            var dstTexts = await _texts.Query(t => t.Project == to);
+            var dstTexts = await _texts.Query(t => t.Project == to && !t.HasTranslate);
             var srcTranslates = await _translate.Query(t => t.Project == from && !t.Deleted && t.NextId == null);
-            var dstTranslates = await _translate.Query(t => t.Project == to && !t.Deleted && t.NextId == null);
+            //var dstTranslates = await _translate.Query(t => t.Project == to && !t.Deleted && t.NextId == null);
 
-            foreach (var byVolume in srcTexts.GroupBy(t => t.Volume))
+            var srcTrByCode = srcTranslates.ToDictionary(t => t.GetCode());
+            Dictionary<string, TextTranslate> translates = new(); // src -> tr. при дубликатах заполняется последний
+            foreach (var txt in srcTexts)
             {
-                var volTr = dstTranslates.Where(t => t.Volume == byVolume.Key);
+                if (!txt.HasTranslate) continue;
+                if (!srcTrByCode.TryGetValue(txt.GetCode(), out var tr)) continue;
+                translates[txt.Text] = tr;
+            }
+
+            foreach (var txt in dstTexts)
+            {
+                if (translates.TryGetValue(txt.Text, out var tr))
+                {
+                    await _translate.Insert(new TextTranslate
+                    {
+                        Project = to,
+                        Volume = txt.Volume,
+                        Number = txt.Number,
+                        Text = tr.Text,
+                        Author = tr.Author,
+                        Editor = tr.Editor,
+                        DateCreate = tr.DateCreate,
+                        Letters = tr.Letters,
+                    });
+
+                    await _texts.Update(t => t.Id == txt.Id)
+                        .Set(t => t.HasTranslate, true)
+                        .Execute();
+                }
+                else
+                {
+                    // Нестрогий поиск
+                    /*var searchResult = await _search.SearchInProject(from, txt.Text, true, false, 0, 10);
+                    if (searchResult.Any())
+                    {
+                        if (!txt.MaxScore.HasValue)
+                        {
+                            var score = await _search.GetMaxScore(txt);
+                            if (score > 0)
+                            {
+                                await _texts.Update(t => t.Id == txt.Id).Set(t => t.MaxScore, score).Execute();
+                                txt.MaxScore = score;
+                            }
+                        }
+
+                        var searchScored = searchResult.Select(res => new
+                        {
+                            Score = res.Score.GetValueOrDefault(0) / txt.MaxScore.GetValueOrDefault(1),
+                            res.Volume,
+                            res.Number
+                        }).Where(r => r.Score > 0.9);
+
+                        if (searchScored.Any())
+                        {
+                            var best = searchScored.MaxBy(res => res.Score);
+                            var src = srcTexts.Find(t => t.Volume == best.Volume && t.Number == best.Number);
+                            tr = srcTranslates.Find(t => t.Volume == best.Volume && t.Number == best.Number);
+
+                            await _translate.Insert(new TextTranslate
+                            {
+                                Project = to,
+                                Volume = txt.Volume,
+                                Number = txt.Number,
+                                Text = tr.Text,
+                                Author = tr.Author,
+                                Editor = tr.Editor,
+                                DateCreate = tr.DateCreate,
+                                Letters = tr.Letters,
+                            });
+
+                            await _texts.Update(t => t.Id == txt.Id)
+                                .Set(t => t.HasTranslate, true)
+                                .Execute();
+                        }
+                    }*/
+                }
+            }
+
+            /*foreach (var byVolume in srcTexts.GroupBy(t => t.Volume))
+            {
+                var volume = byVolume.Key;
+                var volTr = dstTranslates.Where(t => t.Volume == volume);
                 foreach (var gr in byVolume.GroupBy(t => t.Text)) // Чтобы избежать дублирования. Если один и тот же исходный текст встречается несколько раз
                 {
                     var txt = gr.First();
@@ -160,7 +246,7 @@ namespace TranslateServer.Controllers
                         });
                     }
                 }
-            }
+            }*/
 
             _logger.LogInformation("Import complete");
             return Ok();
@@ -169,7 +255,7 @@ namespace TranslateServer.Controllers
         [HttpPost("said/{project}/{num}")]
         public async Task<ActionResult> ExtractSaids(string project, ushort num)
         {
-            var package = _sci.Load(project);
+            var package = await _sci.Load(project);
             var extract = new SaidExtractWeb(package);
             var saids = extract.Process(num);
             var volume = $"text_{num:D3}";
@@ -194,7 +280,7 @@ namespace TranslateServer.Controllers
             var nounOffset = 85;
             var rangesOffset = 123;
 
-            var package = _sci.Load(project);
+            var package = await _sci.Load(project);
             var res = package.GetResource<ResScript>(num);
             var scr = res.GetScript() as Script;
             var vars = scr.Get<LocalVariablesSection>().First().Vars;
@@ -263,7 +349,7 @@ namespace TranslateServer.Controllers
                 {"window", "окно" },
             };
 
-            var package = _sci.Load("colonels_bequest");
+            var package = await _sci.Load("colonels_bequest");
 
             foreach (var res in package.GetResources<ResScript>())
             {
@@ -362,7 +448,7 @@ namespace TranslateServer.Controllers
         {
             _logger.LogInformation($"{project} Begin extract parser");
 
-            var package = _sci.Load(project);
+            var package = await _sci.Load(project);
 
             var scriptRes = package.Scripts
                 .GroupBy(r => r.Number).Select(g => g.First());
@@ -507,7 +593,7 @@ namespace TranslateServer.Controllers
         {
             _logger.LogInformation($"{project} Begin prints rebuild");
 
-            var package = _sci.Load(project);
+            var package = await _sci.Load(project);
 
             var scriptRes = package.Scripts
                 .GroupBy(r => r.Number).Select(g => g.First());
@@ -570,7 +656,7 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> Import()
         {
             var project = "camelot";
-            var package = _sci.Load(project);
+            var package = await _sci.Load(project);
             var translate = SCIPackage.Load(@"D:\Dos\GAMES\Conquests_of_Camelot_rus\");
 
             {

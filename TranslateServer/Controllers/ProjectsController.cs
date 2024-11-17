@@ -310,7 +310,7 @@ namespace TranslateServer.Controllers
                 foreach (var p in await _patches.Query(p => p.Project == project))
                     await _patches.FullDelete(p.Id);
 
-                var srcPack = _sci.Load(project);
+                var srcPack = await _sci.Load(project);
                 var otherRes = package.GetResources(ResType.Font)
                     .Union(package.GetResources(ResType.View))
                     .Union(package.GetResources(ResType.Picture))
@@ -441,6 +441,26 @@ namespace TranslateServer.Controllers
                 symbols,
                 lines
             });
+        }
+
+        public class UpdateRequest
+        {
+            public string Name { get; set; }
+            public string CodePage { get; set; }
+        }
+
+        [AuthAdmin]
+        [HttpPost("{project}/update")]
+        public async Task<ActionResult> Update(string project, UpdateRequest request)
+        {
+            var upd = _projects.Update(p => p.Code == project);
+            if (!string.IsNullOrEmpty(request.Name))
+                upd.Set(p => p.Name, request.Name);
+            if (!string.IsNullOrEmpty(request.CodePage))
+                upd.Set(p => p.CodePage, request.CodePage);
+            await upd.Execute();
+
+            return Ok();
         }
     }
 }

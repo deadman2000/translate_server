@@ -84,19 +84,19 @@ namespace TranslateServer.Controllers
             var proj = await _projects.GetProject(project);
 
             if (proj.Engine == "ags")
-                await GenerateAGSZip(project, false);
+                await GenerateAGSZip(proj, false);
             else
                 await GenerateSCIZip(proj, false);
         }
 
-        private async Task GenerateAGSZip(string project, bool full)
+        private async Task GenerateAGSZip(Project project, bool full)
         {
-            var path = _sci.GetProjectPath(project);
+            var path = _sci.GetProjectPath(project.Code);
 
             var ms = new MemoryStream();
             using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
             {
-                var volumes = await _volumes.Query(v => v.Project == project);
+                var volumes = await _volumes.Query(v => v.Project == project.Code);
 
                 foreach (var vol in volumes)
                 {
@@ -105,7 +105,7 @@ namespace TranslateServer.Controllers
                         var trsPath = Path.Combine(path, vol.Name);
                         AGSTranslation translation = AGSTranslation.ReadSourceFile(trsPath);
 
-                        var texts = await _translate.Query(t => t.Project == project && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+                        var texts = await _translate.Query(t => t.Project == project.Code && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
                         foreach (var t in texts)
                             translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
 
@@ -117,7 +117,7 @@ namespace TranslateServer.Controllers
                         var entry = archive.CreateEntry(traPath);
 
                         var msTRA = new MemoryStream();
-                        translation.TranslateEncoding = Encoding.GetEncoding(1251);
+                        translation.TranslateEncoding = project.GetEncoding();
                         translation.Compile(msTRA);
                         msTRA.Seek(0, SeekOrigin.Begin);
 
@@ -132,14 +132,14 @@ namespace TranslateServer.Controllers
                             AGSTranslation translation = new();
                             translation.Decompile(traPath);
 
-                            var texts = await _translate.Query(t => t.Project == project && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+                            var texts = await _translate.Query(t => t.Project == project.Code && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
                             foreach (var t in texts)
                                 translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
 
                             var entry = archive.CreateEntry($"{vol.Name}/Russian.tra");
 
                             var msTRA = new MemoryStream();
-                            translation.TranslateEncoding = Encoding.GetEncoding(1251);
+                            translation.TranslateEncoding = project.GetEncoding();
                             translation.Compile(msTRA);
                             msTRA.Seek(0, SeekOrigin.Begin);
 
@@ -149,7 +149,7 @@ namespace TranslateServer.Controllers
                     }
                 }
 
-                var patches = (await _patches.Query(p => p.Project == project && !p.Deleted)).ToList();
+                var patches = (await _patches.Query(p => p.Project == project.Code && !p.Deleted)).ToList();
                 foreach (var p in patches)
                 {
                     var entry = archive.CreateEntry(p.FileName);
@@ -158,7 +158,7 @@ namespace TranslateServer.Controllers
                 }
             }
 
-            string fileName = project;
+            string fileName = project.Code;
             if (!full) fileName += "_patch";
 
             ms.Seek(0, SeekOrigin.Begin);
@@ -172,7 +172,7 @@ namespace TranslateServer.Controllers
         private async Task GenerateSCIZip(Project proj, bool full)
         {
             var project = proj.Code;
-            var package = _sci.Load(project);
+            var package = _sci.Load(proj);
 
             Dictionary<string, byte[]> additionalFiles = new(); // Файлы, которые не являются ресурсами
             List<Resource> pathedRes = new();

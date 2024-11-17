@@ -2,23 +2,37 @@
 using SCI_Lib;
 using System;
 using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using TranslateServer.Documents;
+using TranslateServer.Store;
 
 namespace TranslateServer.Services
 {
     public class SCIService
     {
         private readonly string _projectsDir;
+        private readonly ProjectsStore _projects;
 
-        public SCIService(IOptions<ServerConfig> config)
+        public SCIService(IOptions<ServerConfig> config, ProjectsStore projects)
         {
             _projectsDir = config.Value.ProjectsDir;
+            _projects = projects;
         }
 
-        public string GetProjectPath(string project) => $"{_projectsDir}/{project}/";
+        public string GetProjectPath(string projectCode) => $"{_projectsDir}/{projectCode}/";
 
-        public SCIPackage Load(string project)
+        public SCIPackage Load(Project project) => Load(project.Code, project.GetEncoding());
+
+        public async Task<SCIPackage> Load(string projectCode)
         {
-            return SCIPackage.Load(GetProjectPath(project));
+            var project = await _projects.Get(p => p.Code == projectCode);
+            return Load(project);
+        }
+
+        public SCIPackage Load(string project, Encoding encoding)
+        {
+            return SCIPackage.Load(GetProjectPath(project), encoding);
         }
 
         public void DeletePackage(string project)

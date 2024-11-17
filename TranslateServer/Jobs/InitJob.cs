@@ -98,7 +98,7 @@ namespace TranslateServer.Jobs
 
         private async Task RemoveTalkerSrc(string project)
         {
-            var package = _sci.Load(project);
+            var package = await _sci.Load(project);
             foreach (var res in package.GetResources<ResScript>())
             {
                 var scr = res.GetScript() as Script;
@@ -143,7 +143,7 @@ namespace TranslateServer.Jobs
         {
             var projects = await _projects.All();
             foreach (var proj in projects)
-                await Escape(proj.Code);
+                await Escape(proj);
         }
 
         private async Task SetupIsTranslate(string project)
@@ -200,18 +200,18 @@ namespace TranslateServer.Jobs
         }
 
 
-        public async Task Escape(string project)
+        public async Task Escape(Project project)
         {
             try
             {
                 var package = _sci.Load(project);
 
                 foreach (var res in package.GetResources<ResText>())
-                    await Escape(project, res);
+                    await Escape(project.Code, res);
                 foreach (var res in package.GetResources<ResScript>())
-                    await Escape(project, res);
+                    await Escape(project.Code, res);
                 foreach (var res in package.GetResources<ResMessage>())
-                    await EscapeMsg(project, res);
+                    await EscapeMsg(project.Code, res);
             }
             catch (Exception ex)
             {

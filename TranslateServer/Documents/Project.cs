@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
 using System;
+using System.Text;
 
 namespace TranslateServer.Documents
 {
@@ -33,6 +34,16 @@ namespace TranslateServer.Documents
         public bool Shared { get; set; }
 
         public bool HasSaid { get; set; }
+
+        public string CodePage { get; set; }
+
+        static readonly Encoding DefaultEncoding = Encoding.GetEncoding(866);
+
+        public Encoding GetEncoding()
+        {
+            if (string.IsNullOrEmpty(CodePage)) return DefaultEncoding;
+            return Encoding.GetEncoding(CodePage);
+        }
     }
 
     public enum ProjectStatus

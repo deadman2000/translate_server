@@ -37,7 +37,7 @@ namespace TranslateServer.Controllers
         {
             string volume;
             int index;
-            var package = _resCache.Load(request.Project);
+            var package = await _resCache.Load(request.Project);
 
             if (request.Type == "msg")
             {
