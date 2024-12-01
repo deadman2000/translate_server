@@ -63,6 +63,25 @@ namespace TranslateServer.Controllers
             return Ok(new TranslateInfo(translate, comments));
         }
 
+        public class SubmitIdRequest
+        {
+            public string Project { get; set; }
+            public string Id { get; set; }
+            public string Text { get; set; }
+        }
+
+        [HttpPost("by_id")]
+        public async Task<ActionResult> SubmitById(string id, [FromBody] SubmitIdRequest request)
+        {
+            if (!await HasAccessToProject(request.Project)) return NotFound();
+
+            var txt = await _texts.GetById(request.Id);
+            var translate = await _translateService.Submit(request.Project, txt.Volume, txt.Number, request.Text, UserLogin, false, null);
+            if (translate == null) return NotFound();
+
+            return Ok(new TranslateInfo(translate));
+        }
+
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(string id)
         {

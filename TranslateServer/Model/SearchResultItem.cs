@@ -13,5 +13,7 @@
         public string Html { get; set; }
 
         public double? Score { get; set; }
+
+        public string Text { get; internal set; }
     }
 }

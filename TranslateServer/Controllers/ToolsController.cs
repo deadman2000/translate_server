@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using FuzzierSharp;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver.Linq;
@@ -297,91 +298,10 @@ namespace TranslateServer.Controllers
                     var volume = $"text_{txtRes:D3}";
                     var said = $"{verb}{vars[nounOffset + noun]}";
 
-                    System.Console.WriteLine($"{said}  {txtRes}:{txtInd}");
+                    Console.WriteLine($"{said}  {txtRes}:{txtInd}");
                     await _texts.Update(t => t.Project == project && t.Volume == volume && t.Number == txtInd)
                         .Set(t => t.Description, said)
                         .Execute();
-                }
-            }
-
-            return Ok();
-        }
-
-        [HttpPost("tells")]
-        public async Task<ActionResult> Tells()
-        {
-            Dictionary<string, string> translates = new()
-            {
-                {"bed", "кровать" },
-                {"carpet", "ковер" },
-                {"celie", "сели" },
-                {"chair", "стул" },
-                {"clarence", "кларенса" },
-                {"colonel", "полковника" },
-                {"couch", "диван" },
-                {"crank", "рычаг" },
-                {"door", "дверь" },
-                {"elevator", "лифт" },
-                {"equipment", "прачечную" },
-                {"ethel", "этель" },
-                {"eye", "глаз" },
-                {"fifi", "фифи" },
-                {"fire", "огонь" },
-                {"fireplace", "камин" },
-                {"floor", "пол" },
-                {"gertie", "герти" },
-                {"gloria", "глорию" },
-                {"ground", "землю" },
-                {"horse", "лошадь" },
-                {"house", "дом" },
-                {"jeeves", "дживса" },
-                {"lamp", "лампу" },
-                {"lillian", "лилиан" },
-                {"mantel", "каминную полку" },
-                {"mirror", "зеркало" },
-                {"owl", "сову" },
-                {"picture", "картину" },
-                {"platform", "платформу" },
-                {"rudy", "руди" },
-                {"sofa", "софу" },
-                {"table", "стол" },
-                {"wilbur", "уилбура" },
-                {"window", "окно" },
-            };
-
-            var package = await _sci.Load("colonels_bequest");
-
-            foreach (var res in package.GetResources<ResScript>())
-            {
-                var volume = $"script_{res.Number:D3}";
-                var scr = res.GetScript() as Script;
-                var strings = scr.AllStrings().ToList();
-                foreach (var cs in scr.Get<CodeSection>())
-                {
-                    foreach (var op in cs.Operators)
-                    {
-                        if (op.Name == "callb")
-                        {
-                            if (op.GetByte(0) == 0x19 && op.GetByte(1) == 2)
-                            {
-                                var r = op.Prev.Prev.Arguments[0] as CodeRef;
-                                var s = r.Reference as StringConst;
-                                var ind = strings.IndexOf(s);
-                                Console.WriteLine($"{res.Number}:{ind}  {s.Value}");
-
-                                if (!translates.TryGetValue(s.Value, out var translate)) continue;
-
-                                var tr = await _translate.Get(t => t.Project == "colonels_bequest" && !t.Deleted && t.NextId == null
-                                    && t.Volume == volume && t.Number == ind);
-
-                                if (tr == null) throw new Exception();
-                                if (tr.Text != s.Value)
-                                    Console.WriteLine($"{tr.Text} != {s.Value}");
-
-                                await _translate.Update(t => t.Id == tr.Id).Set(t => t.Text, translate).Execute();
-                            }
-                        }
-                    }
                 }
             }
 
@@ -784,6 +704,85 @@ namespace TranslateServer.Controllers
             }
 
             return Ok();
+        }
+
+        public class MatchTextRequest
+        {
+            public string From { get; set; }
+
+            public string[] Skip { get; set; }
+
+            public int Take { get; set; }
+        }
+
+        public class MatchResult
+        {
+            public string Id { get; set; }
+            public string Src { get; set; }
+            public string Dst { get; set; }
+            public string Tr { get; set; }
+            public double Score { get; set; }
+            public string Volume { get; set; }
+            public int Number { get; set; }
+        }
+
+        [HttpPost("text_match/{project}")]
+        public async Task<ActionResult> GetTextMatch(string project, MatchTextRequest request)
+        {
+            var notTr = await _texts.Query(t => t.Project == project && !t.HasTranslate);
+            var filtered = notTr.OrderBy(t => t.Number).AsEnumerable();
+            if (request.Skip != null)
+            {
+                var skipSet = request.Skip.ToHashSet();
+                filtered = filtered.Where(t => !skipSet.Contains(t.Id));
+            }
+
+            List<MatchResult> results = new();
+            List<string> skip = new();
+            foreach (var txt in filtered)
+            {
+                var searchResult = await _search.SearchInProject(request.From, txt.Text, true, false, 0, 10);
+                if (searchResult.Any())
+                {
+                    var searchScored = searchResult.Select(res => new
+                    {
+                        Score = Fuzz.Ratio(txt.Text, res.Text),
+                        res
+                    }).Where(r => r.Score > 70);
+
+                    if (searchScored.Any())
+                    {
+                        var best = searchScored.MaxBy(res => res.Score);
+
+                        var dst = await _texts.Get(t => t.Project == request.From && t.Volume == best.res.Volume && t.Number == best.res.Number);
+                        var tr = await _translate.Get(t => t.Project == request.From && t.Volume == best.res.Volume && t.Number == best.res.Number && !t.Deleted && t.NextId == null);
+
+
+                        results.Add(new MatchResult
+                        {
+                            Id = txt.Id,
+                            Src = txt.Text,
+                            Dst = dst.Text,
+                            Tr = tr.Text,
+                            Score = best.Score,
+                            Volume = txt.Volume,
+                            Number = txt.Number
+                        });
+                        if (results.Count == request.Take)
+                            break;
+                    }
+                    else
+                        skip.Add(txt.Id);
+                }
+                else
+                    skip.Add(txt.Id);
+            }
+
+            return Ok(new
+            {
+                results,
+                skip
+            });
         }
     }
 }

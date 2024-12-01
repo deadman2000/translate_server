@@ -170,6 +170,7 @@ namespace TranslateServer.Services
                 Volume = h.Source.Volume,
                 Number = h.Source.Number,
                 Html = h.Highlight.GetValueOrDefault("text")?.FirstOrDefault() ?? h.Source.Text,
+                Text = h.Source.Text
             });
         }
 
