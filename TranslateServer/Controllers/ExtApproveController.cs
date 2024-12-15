@@ -30,11 +30,33 @@ namespace TranslateServer.Controllers
             public int? Noun { get; set; }
             public int? Verb { get; set; }
             public int? Index { get; set; }
+
+
+            public string Volume { get; set; }
+
+            /// <summary>
+            /// Source text
+            /// </summary>
+            public string Text { get; set; }
         }
 
         [HttpPost]
         public async Task<ActionResult> Approve(ApproveRequest request)
         {
+            if (request.Type == "source")
+            {
+                await _textsStore.Update()
+                                .Where(t => t.Project == request.Project && t.Volume == request.Volume && t.Text == request.Text && !t.TranslateApproved)
+                                .Set(t => t.TranslateApproved, true)
+                                .Execute();
+
+                await _translateService.UpdateVolumeProgress(request.Project, request.Volume);
+                await _translateService.UpdateProjectProgress(request.Project);
+
+                return Ok();
+            }
+
+
             string volume;
             int index;
             var package = await _resCache.Load(request.Project);
