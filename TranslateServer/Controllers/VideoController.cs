@@ -29,6 +29,13 @@ namespace TranslateServer.Controllers
             return Ok(all);
         }
 
+        [HttpGet("project/{project}")]
+        public async Task<ActionResult> Get(string project)
+        {
+            var all = await _video.Query(v => v.Project == project);
+            return Ok(all);
+        }
+
         [HttpPost]
         public async Task<ActionResult> Post([FromBody] Video video, [FromServices] ProjectsStore projects)
         {
