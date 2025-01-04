@@ -20,10 +20,6 @@ public class SaidDocument : Document
     public bool Approved { get; set; }
 
     [BsonIgnoreIfNull]
-    [Obsolete("Use `Tests` instead")]
-    public string[] Examples { get; set; }
-
-    [BsonIgnoreIfNull]
     public SaidTest[] Tests { get; set; }
 
     [BsonIgnoreIfNull]

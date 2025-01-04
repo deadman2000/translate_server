@@ -67,7 +67,6 @@ namespace TranslateServer.Jobs
 
             await Spellchecking();
             await SynonymDuplicates();
-            await PatchSaidExamples();
             _logger.LogInformation("Init complete");
         }
 
@@ -317,23 +316,6 @@ namespace TranslateServer.Jobs
 
             _spellcheckCache.ResetTotal();
             _logger.LogInformation("Spell checking done");
-        }
-
-        async Task PatchSaidExamples()
-        {
-#pragma warning disable 612, 618
-            var saids = await _saids.Query(s => s.Examples != null && s.Tests == null);
-            foreach (var said in saids)
-            {
-                await _saids.Update(s => s.Id == said.Id)
-                    .Set(s => s.Tests, said.Examples.Select(t => new SaidTest { Said = t, Positive = true }).ToArray())
-                    .Execute();
-            }
-
-            await _saids.Update(s => s.Examples != null)
-                .Unset(s => s.Examples)
-                .Execute();
-#pragma warning restore 612, 618
         }
     }
 }
