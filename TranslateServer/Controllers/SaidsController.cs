@@ -82,11 +82,17 @@ namespace TranslateServer.Controllers
 
             var scr = package.GetResource<ResScript>((ushort)script).GetScript() as Script;
             var ss = scr.SaidSection;
-            foreach (var s in saids)
+            foreach (var said in saids)
             {
-                if (string.IsNullOrEmpty(s.Patch))
-                    s.Patch = ss.Saids[s.Index].Label;
-                s.Validation = Validate(package, s.Patch, s.Tests);
+                if (string.IsNullOrEmpty(said.Patch))
+                    said.Patch = ss.Saids[said.Index].Label;
+                said.Validation = Validate(package, said.Patch, said.Tests);
+                if (said.Validation.Valid != said.IsValid)
+                {
+                    await _saids.Update(s => s.Id == said.Id)
+                        .Set(s => s.IsValid, said.Validation.Valid)
+                        .Execute();
+                }
             }
 
             return Ok(saids);
