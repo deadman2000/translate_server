@@ -34,8 +34,7 @@ namespace TranslateServer.Store
                 var ss = scr.SynonymSecion;
                 if (ss == null)
                 {
-                    _logger.LogWarning($"Script {res.Number} synonyms section not exists");
-                    continue;
+                    ss = scr.CreateSection(SectionType.Synonym) as SynonymSecion;
                 }
 
                 var toRemove = gr.Where(s => s.Delete)
