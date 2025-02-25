@@ -29,7 +29,6 @@ namespace TranslateServer.Jobs
         private readonly YandexSpellcheck _spellcheck;
         private readonly TextsStore _texts;
         private readonly SCIService _sci;
-        private readonly SynonymStore _synonyms;
         private readonly SaidStore _saids;
         private readonly SpellcheckCache _spellcheckCache;
 
@@ -40,7 +39,6 @@ namespace TranslateServer.Jobs
             YandexSpellcheck spellcheck,
             TextsStore texts,
             SCIService sci,
-            SynonymStore synonyms,
             SaidStore saids,
             SpellcheckCache spellcheckCache)
         {
@@ -51,7 +49,6 @@ namespace TranslateServer.Jobs
             _spellcheck = spellcheck;
             _texts = texts;
             _sci = sci;
-            _synonyms = synonyms;
             _saids = saids;
             _spellcheckCache = spellcheckCache;
         }
@@ -66,7 +63,6 @@ namespace TranslateServer.Jobs
             //await RepairHasTranslate("larry_5");
 
             await Spellchecking();
-            await SynonymDuplicates();
             _logger.LogInformation("Init complete");
         }
 
@@ -124,13 +120,6 @@ namespace TranslateServer.Jobs
             }
 
             await Console.Out.WriteLineAsync();
-        }
-
-        private async Task SynonymDuplicates()
-        {
-            await _synonyms.Update(s => !s.Delete && s.WordA == s.WordB)
-                .Set(s => s.Delete, true)
-                .ExecuteMany();
         }
 
         private Task UpdateNullEngine()

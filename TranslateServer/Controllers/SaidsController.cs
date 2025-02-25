@@ -158,7 +158,7 @@ namespace TranslateServer.Controllers
                     && t.IsTranslate && t.NextId == null && !t.Deleted);
                 result.Add(new
                 {
-                    txt.Text,
+                    txt?.Text,
                     Tr = tr?.Text
                 });
             }

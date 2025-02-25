@@ -39,7 +39,6 @@ namespace TranslateServer.Controllers
         private readonly SuffixesStore _suffixes;
         private readonly SaidStore _saids;
         private readonly SynonymStore _synonyms;
-        private readonly TranslateService _translateService;
         private readonly VideoReferenceStore _videoReference;
 
         public ToolsController(ILogger<ToolsController> logger,
@@ -53,7 +52,6 @@ namespace TranslateServer.Controllers
             SuffixesStore suffixes,
             SaidStore saids,
             SynonymStore synonyms,
-            TranslateService translateService,
             VideoReferenceStore videoReference
         )
         {
@@ -68,7 +66,6 @@ namespace TranslateServer.Controllers
             _suffixes = suffixes;
             _saids = saids;
             _synonyms = synonyms;
-            _translateService = translateService;
             _videoReference = videoReference;
         }
 
