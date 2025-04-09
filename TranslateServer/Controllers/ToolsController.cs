@@ -291,7 +291,7 @@ namespace TranslateServer.Controllers
                 {
                     var txtRes = (ushort)vars[msgOffset + noun * 2];
                     var txtInd = (ushort)vars[msgOffset + noun * 2 + 1];
-                    var verb = ((SaidExpression)((RefToElement)vars[verbOffset + verbInd]).Reference).Label.TrimEnd('>');
+                    var verb = ((SaidExpression)((BaseRef)vars[verbOffset + verbInd]).Reference).Label.TrimEnd('>');
                     var volume = $"text_{txtRes:D3}";
                     var said = $"{verb}{vars[nounOffset + noun]}";
 
