@@ -5,10 +5,10 @@ using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Sections;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
-using TranslateServer.Model;
 using TranslateServer.Model.Yandex;
 using TranslateServer.Services;
 using TranslateServer.Store;
@@ -61,9 +61,33 @@ namespace TranslateServer.Jobs
             //await EscapeStrings();
             //await UpdateNullEngine();
             //await RepairHasTranslate("larry_5");
-
-            await Spellchecking();
+            //await Spellchecking();
+            await FileNamesToUpper();
             _logger.LogInformation("Init complete");
+        }
+
+        private async Task FileNamesToUpper()
+        {
+            var projects = await _projects.All();
+            foreach (var project in projects)
+            {
+                var dir = _sci.GetProjectPath(project.Code);
+
+                if (!Directory.Exists(dir))
+                {
+                    continue;
+                }
+
+                var files = Directory.GetFiles(dir);
+                foreach (var file in files)
+                {
+                    var fileName = Path.GetFileName(file);
+                    if (fileName != fileName.ToUpper())
+                    {
+                        File.Move(file, Path.Combine(dir, fileName.ToUpper()));
+                    }
+                }
+            }
         }
 
         private async Task RepairHasTranslate(string project)

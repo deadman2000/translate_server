@@ -184,7 +184,7 @@ namespace TranslateServer.Controllers
                 var data = await _patches.GetContent(p.FileId);
                 if (IsPatchTranslate(p.FileName))
                 {
-                    var res = package.SetPatch(p.FileName, data);
+                    var res = package.SetPatch(p.FileName.ToUpper(), data);
                     pathedRes.Add(res);
                 }
                 else

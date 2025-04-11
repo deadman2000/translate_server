@@ -115,6 +115,7 @@ namespace TranslateServer.Controllers
             try
             {
                 await ExtractToDir(file, targetDir);
+                RenameFilesToUpper(targetDir);
 
                 await _projects.Update(p => p.Code == project && p.Status == ProjectStatus.New)
                     .Set(p => p.Status, ProjectStatus.TextExtract)
@@ -271,6 +272,7 @@ namespace TranslateServer.Controllers
             try
             {
                 await ExtractToDir(file, dir);
+                RenameFilesToUpper(dir);
 
                 var package = SCIPackage.Load(dir);
                 var enc = package.GameEncoding;
@@ -365,6 +367,19 @@ namespace TranslateServer.Controllers
             else
             {
                 archive.ExtractToDirectory(targetDir);
+            }
+        }
+
+        private static void RenameFilesToUpper(string dir)
+        {
+            var files = Directory.GetFiles(dir);
+            foreach (var file in files)
+            {
+                var fileName = Path.GetFileName(file);
+                if (fileName != fileName.ToUpper())
+                {
+                    System.IO.File.Move(file, Path.Combine(dir, fileName.ToUpper()));
+                }
             }
         }
 
