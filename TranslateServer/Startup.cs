@@ -96,8 +96,8 @@ namespace TranslateServer
                     });
 
                     InitJob.Schedule(q);
-                    ResourceExtractor.Schedule(q);
-                    VideoTextMatcher.Schedule(q);
+                    ResourceExtractorJob.Schedule(q);
+                    VideoTextMatcherJob.Schedule(q);
                 });
 
                 services.AddQuartzHostedService();

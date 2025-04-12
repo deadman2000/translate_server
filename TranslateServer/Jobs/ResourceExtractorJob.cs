@@ -11,12 +11,13 @@ using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Services;
 using TranslateServer.Store;
+using TranslateServer.Tools;
 
 namespace TranslateServer.Jobs
 {
-    class ResourceExtractor : IJob
+    class ResourceExtractorJob : IJob
     {
-        private readonly ILogger<ResourceExtractor> _logger;
+        private readonly ILogger<ResourceExtractorJob> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly ProjectsStore _projects;
         private readonly VolumesStore _volumes;
@@ -27,7 +28,7 @@ namespace TranslateServer.Jobs
 
         public static void Schedule(IServiceCollectionQuartzConfigurator q)
         {
-            q.ScheduleJob<ResourceExtractor>(j => j
+            q.ScheduleJob<ResourceExtractorJob>(j => j
                 .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
                 .WithSimpleSchedule(x => x
                     .WithIntervalInMinutes(1)
@@ -35,8 +36,8 @@ namespace TranslateServer.Jobs
             );
         }
 
-        public ResourceExtractor(
-            ILogger<ResourceExtractor> logger,
+        public ResourceExtractorJob(
+            ILogger<ResourceExtractorJob> logger,
             IServiceProvider serviceProvider,
             ProjectsStore projects,
             VolumesStore volumes,
@@ -70,8 +71,8 @@ namespace TranslateServer.Jobs
                 _logger.LogInformation($"Extracting text for {project.Code}");
                 try
                 {
-                    Worker worker = new(_serviceProvider, project);
-                    await worker.Extract();
+                    Extractor extractor = new(_serviceProvider, project);
+                    await extractor.CleanAndExtractAll();
 
                     _logger.LogInformation($"Project {project.Code} text extracted");
                     await _projects.Update(p => p.Id == project.Id)

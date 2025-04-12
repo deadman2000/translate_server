@@ -29,7 +29,6 @@ namespace TranslateServer.Jobs
         private readonly YandexSpellcheck _spellcheck;
         private readonly TextsStore _texts;
         private readonly SCIService _sci;
-        private readonly SaidStore _saids;
         private readonly SpellcheckCache _spellcheckCache;
 
         public InitJob(ILogger<InitJob> logger,
@@ -49,7 +48,6 @@ namespace TranslateServer.Jobs
             _spellcheck = spellcheck;
             _texts = texts;
             _sci = sci;
-            _saids = saids;
             _spellcheckCache = spellcheckCache;
         }
 

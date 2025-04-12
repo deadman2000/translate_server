@@ -12,7 +12,7 @@ using TranslateServer.Store;
 
 namespace TranslateServer.Jobs
 {
-    public class VideoTextMatcher : IJob
+    public class VideoTextMatcherJob : IJob
     {
         public static void Schedule(IServiceCollectionQuartzConfigurator q)
         {
@@ -27,7 +27,7 @@ namespace TranslateServer.Jobs
             }
             else
             {
-                q.ScheduleJob<VideoTextMatcher>(j => j
+                q.ScheduleJob<VideoTextMatcherJob>(j => j
                     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
                     .WithSimpleSchedule(x => x
                         .WithIntervalInMinutes(1)
@@ -36,7 +36,7 @@ namespace TranslateServer.Jobs
             }
         }
 
-        private readonly ILogger<VideoTextMatcher> _logger;
+        private readonly ILogger<VideoTextMatcherJob> _logger;
         private readonly VideoTextStore _videoText;
         private readonly TextsStore _texts;
         private readonly VideoReferenceStore _videoReference;
@@ -44,7 +44,7 @@ namespace TranslateServer.Jobs
         private readonly VideoStore _videos;
         private readonly VideoTasksStore _tasks;
 
-        public VideoTextMatcher(ILogger<VideoTextMatcher> logger, VideoTextStore videoText, TextsStore texts, VideoReferenceStore videoReference, SearchService search, VideoStore videos, VideoTasksStore tasks)
+        public VideoTextMatcherJob(ILogger<VideoTextMatcherJob> logger, VideoTextStore videoText, TextsStore texts, VideoReferenceStore videoReference, SearchService search, VideoStore videos, VideoTasksStore tasks)
         {
             _logger = logger;
             _videoText = videoText;
