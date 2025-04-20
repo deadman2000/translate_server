@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using Quartz;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
@@ -28,7 +29,12 @@ namespace TranslateServer.Jobs
         private readonly TranslateStore _translate;
         private readonly YandexSpellcheck _spellcheck;
         private readonly TextsStore _texts;
+        private readonly VolumesStore _volumes;
         private readonly SCIService _sci;
+        private readonly SaidStore _saids;
+        private readonly WordsStore _words;
+        private readonly SynonymStore _synonym;
+        private readonly SuffixesStore _suffixes;
         private readonly SpellcheckCache _spellcheckCache;
 
         public InitJob(ILogger<InitJob> logger,
@@ -37,8 +43,12 @@ namespace TranslateServer.Jobs
             TranslateStore translate,
             YandexSpellcheck spellcheck,
             TextsStore texts,
+            VolumesStore volumes,
             SCIService sci,
             SaidStore saids,
+            WordsStore words,
+            SynonymStore synonym,
+            SuffixesStore suffixes,
             SpellcheckCache spellcheckCache)
         {
             _logger = logger;
@@ -47,21 +57,84 @@ namespace TranslateServer.Jobs
             _translate = translate;
             _spellcheck = spellcheck;
             _texts = texts;
+            _volumes = volumes;
             _sci = sci;
+            _saids = saids;
+            _words = words;
+            _synonym = synonym;
+            _suffixes = suffixes;
             _spellcheckCache = spellcheckCache;
         }
 
         public async Task Execute(IJobExecutionContext context)
         {
             await UsersInit();
+            await FileNamesToUpper();
 
             //await CheckDublicates("longbow_1_1");
             //await EscapeStrings();
             //await UpdateNullEngine();
             //await RepairHasTranslate("larry_5");
             //await Spellchecking();
-            await FileNamesToUpper();
+            //await CopyParser("larry_3_pnc_v2", "larry_3");
             _logger.LogInformation("Init complete");
+        }
+
+        private async Task CopyParser(string project, string fromProject)
+        {
+            // Words
+            /*var words = await _words.Query(w => w.Project == fromProject && w.IsTranslate);
+
+            await _words.Insert(words.Select(w => new WordDocument
+            {
+                Project = project,
+                Text = w.Text,
+                WordId = w.WordId,
+                IsTranslate = true,
+            }));
+
+            // Synonyms
+            var createdSynonyms = await _synonym.Query(s => s.Project == fromProject && s.Index == null);
+            await _synonym.Insert(createdSynonyms.Select(s => new SynonymDocument
+            {
+                Project = project,
+                Script = s.Script,
+                WordA = s.WordA,
+                WordB = s.WordB,
+            }));
+
+            var deletedSynonyms = await _synonym.Query(s => s.Project == fromProject && s.Delete);
+            foreach (var syn in deletedSynonyms)
+            {
+                await _synonym.Update(s => s.Project == project && s.Script == syn.Script && s.Index == syn.Index)
+                    .Set(s => s.Delete, true)
+                    .Execute();
+            }*/
+
+            // Saids
+            var saids = await _saids.Query(s => s.Project == fromProject);
+            foreach (var said in saids)
+            {
+                await _saids.Update(s => s.Project == project && s.Script == said.Script && s.Expression == said.Expression)
+                    .Set(s => s.Patch, said.Patch)
+                    .Set(s => s.Tests, said.Tests)
+                    .Set(s => s.IsValid, said.IsValid)
+                    .Execute();
+            }
+
+            // Suffixes
+            /*var suffixes = await _suffixes.Query(s => s.Project == fromProject && s.IsTranslate);
+            await _suffixes.Insert(suffixes.Select(s => new SuffixDocument
+            {
+                Project = project,
+                IsTranslate = true,
+                Input = s.Input,
+                InClass = s.InClass,
+                Output = s.Output,
+                OutClass = s.OutClass,
+            }));*/
+
+            Console.WriteLine("Parser copying completed");
         }
 
         private async Task FileNamesToUpper()

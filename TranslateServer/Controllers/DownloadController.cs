@@ -267,7 +267,7 @@ namespace TranslateServer.Controllers
         /// <returns></returns>
         private static bool IsPatchTranslate(string fileName) => Path.GetExtension(fileName).ToLower() switch
         {
-            ".scr" or ".tex" => true,
+            ".scr" or ".tex" or ".msg" => true,
             _ => Path.GetFileNameWithoutExtension(fileName).ToLower() switch
             {
                 "script" or "text" => true,

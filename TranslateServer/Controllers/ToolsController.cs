@@ -754,6 +754,7 @@ namespace TranslateServer.Controllers
                         var dst = await _texts.Get(t => t.Project == request.From && t.Volume == best.res.Volume && t.Number == best.res.Number);
                         var tr = await _translate.Get(t => t.Project == request.From && t.Volume == best.res.Volume && t.Number == best.res.Number && !t.Deleted && t.NextId == null);
 
+                        if (tr == null) continue;
 
                         results.Add(new MatchResult
                         {
