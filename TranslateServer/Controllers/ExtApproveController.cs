@@ -29,6 +29,7 @@ namespace TranslateServer.Controllers
             public ushort Res { get; set; }
             public int? Noun { get; set; }
             public int? Verb { get; set; }
+            public int? Seq { get; set; }
             public int? Index { get; set; }
 
 
@@ -64,7 +65,7 @@ namespace TranslateServer.Controllers
             if (request.Type == "msg")
             {
                 var msg = package.GetResource<ResMessage>(request.Res);
-                index = msg.GetMessages().FindIndex(m => m.Noun == request.Noun.Value && m.Verb == request.Verb.Value);
+                index = msg.GetMessages().FindIndex(m => m.Noun == request.Noun.Value && m.Verb == request.Verb.Value && m.Seq == request.Seq.Value);
 
                 if (index == -1)
                     return NotFound();
