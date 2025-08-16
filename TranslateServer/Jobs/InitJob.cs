@@ -8,6 +8,7 @@ using SCI_Lib.Resources.Scripts.Sections;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Model.Yandex;
@@ -36,6 +37,7 @@ namespace TranslateServer.Jobs
         private readonly SynonymStore _synonym;
         private readonly SuffixesStore _suffixes;
         private readonly SpellcheckCache _spellcheckCache;
+        private readonly TranslateService _translateService;
 
         public InitJob(ILogger<InitJob> logger,
             UsersStore users,
@@ -49,7 +51,8 @@ namespace TranslateServer.Jobs
             WordsStore words,
             SynonymStore synonym,
             SuffixesStore suffixes,
-            SpellcheckCache spellcheckCache)
+            SpellcheckCache spellcheckCache,
+            TranslateService translateService)
         {
             _logger = logger;
             _users = users;
@@ -64,6 +67,7 @@ namespace TranslateServer.Jobs
             _synonym = synonym;
             _suffixes = suffixes;
             _spellcheckCache = spellcheckCache;
+            _translateService = translateService;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -71,6 +75,7 @@ namespace TranslateServer.Jobs
             await UsersInit();
             await FileNamesToUpper();
 
+            // await ParenthesesPatch("freddy_pharkas_cd");
             //await CheckDublicates("longbow_1_1");
             //await EscapeStrings();
             //await UpdateNullEngine();
@@ -78,6 +83,55 @@ namespace TranslateServer.Jobs
             //await Spellchecking();
             //await CopyParser("larry_3_pnc_v2", "larry_3");
             _logger.LogInformation("Init complete");
+        }
+
+        private async Task ParenthesesPatch(string project)
+        {
+            var translates = await _translate.Query(t => t.Project == project && t.IsTranslate && t.NextId == null && !t.Deleted);
+            
+            var pattern = new Regex("\\([^A-Za-z0-9]+\\)");
+
+            (char, char)[] mapping = new[] {
+                ('A', 'А'),
+                ('C', 'С'),
+                ('E', 'Е'),
+                ('H', 'Н'),
+                ('K', 'К'),
+                ('O', 'О'),
+                ('P', 'Р'),
+                ('T', 'Т'),
+                ('X', 'Х'),
+                ('a', 'а'),
+                ('c', 'с'),
+                ('e', 'е'),
+                ('o', 'о'),
+                ('x', 'х'),
+            };
+
+            foreach (var t in translates)
+            {
+                var result = pattern.Match(t.Text);
+                if (result.Success)
+                {
+                    var newPart = result.Value;
+                    foreach (var (to, from) in mapping)
+                    {
+                        newPart = newPart.Replace(from, to);
+                    }
+
+                    if (newPart == result.Value)
+                    {
+                        Console.WriteLine(result.Value);
+                        continue;
+                    }
+
+                    var newText = t.Text.Replace(result.Value, newPart);
+
+                    await _translateService.Submit(t.Project, t.Volume, t.Number, newText, "admin", true, t.Id);
+                }
+            }
+
+            Console.WriteLine();
         }
 
         private async Task CopyParser(string project, string fromProject)
