@@ -83,6 +83,19 @@ namespace TranslateServer.Store
                         var records = resMsg.GetMessages();
                         var record = records[i];
 
+                        var sequence = records.Where(r => r.Noun == record.Noun && r.Verb == record.Verb && r.Cond == record.Cond).ToArray();
+                        if (sequence.Any(r => r.Seq == record.Seq + 1))
+                        {
+                            // Сдвигаем все следующие сообщения
+                            foreach (var rec in sequence)
+                            {
+                                if (rec.Seq > record.Seq)
+                                {
+                                    rec.Seq++;
+                                }
+                            }
+                        }
+
                         if (record is MessageRecordV4)
                         {
                             for (int j = 0; j < parts.Length - 1; j++)
