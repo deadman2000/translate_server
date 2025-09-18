@@ -170,9 +170,13 @@ namespace TranslateServer.Tools
 
                 for (int i = 0; i < records.Count; i++)
                 {
-                    var val = enc.EscapeString(records[i].Text);
+                    var rec = records[i];
+                    var val = enc.EscapeString(rec.Text);
                     if (string.IsNullOrWhiteSpace(val)) continue;
-                    await _texts.Insert(new TextResource(_project, volume, i, val));
+                    await _texts.Insert(new TextResource(_project, volume, i, val)
+                    {
+                        Description = $"Noun: {rec.Noun} Verb: {rec.Verb} Cond: {rec.Cond} Seq: {rec.Seq} Talker: {rec.Talker}"
+                    });
                 }
             }
         }

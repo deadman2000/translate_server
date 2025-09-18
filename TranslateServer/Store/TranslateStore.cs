@@ -65,17 +65,50 @@ namespace TranslateServer.Store
                 for (int i = 0; i < strings.Length; i++)
                     strings[i] = enc.EscapeString(strings[i]);
 
-                var trStrings = (string[])strings.Clone();
+                var trStrings = strings.ToList();
 
                 foreach (var t in g)
                     trStrings[t.Number] = t.Text;
 
                 if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
 
-                for (int i = 0; i < trStrings.Length; i++)
-                    trStrings[i] = enc.UnescapeString(trStrings[i]);
+                for (int i = 0; i < trStrings.Count; i++)
+                {
+                    const string PartSeparator = "$next";
+                    var translate = trStrings[i];
 
-                res.SetStrings(trStrings);
+                    if (translate.Contains(PartSeparator) && res is ResMessage resMsg)
+                    {
+                        var parts = translate.Split(PartSeparator);
+                        var records = resMsg.GetMessages();
+                        var record = records[i];
+
+                        if (record is MessageRecordV4)
+                        {
+                            for (int j = 0; j < parts.Length - 1; j++)
+                            {
+                                records.Add(new MessageRecordV4(record.Noun, record.Verb, record.Cond, (byte)(record.Seq + 1), record.Talker, ""));
+                            }
+                        }
+                        else
+                        {
+                            throw new NotSupportedException();
+                        }
+
+                        trStrings[i] = enc.UnescapeString(parts[0]);
+
+                        for (int j = 1; j < parts.Length; j++)
+                        {
+                            trStrings.Add(enc.UnescapeString(parts[j]));
+                        }
+                    }
+                    else
+                    {
+                        trStrings[i] = enc.UnescapeString(translate);
+                    }
+                }
+
+                res.SetStrings(trStrings.ToArray());
                 resources.Add(res);
             }
             return resources;

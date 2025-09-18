@@ -38,6 +38,7 @@ namespace TranslateServer.Jobs
         private readonly SuffixesStore _suffixes;
         private readonly SpellcheckCache _spellcheckCache;
         private readonly TranslateService _translateService;
+        private readonly PatchesStore _patches;
 
         public InitJob(ILogger<InitJob> logger,
             UsersStore users,
@@ -52,7 +53,8 @@ namespace TranslateServer.Jobs
             SynonymStore synonym,
             SuffixesStore suffixes,
             SpellcheckCache spellcheckCache,
-            TranslateService translateService)
+            TranslateService translateService,
+            PatchesStore patches)
         {
             _logger = logger;
             _users = users;
@@ -68,6 +70,7 @@ namespace TranslateServer.Jobs
             _suffixes = suffixes;
             _spellcheckCache = spellcheckCache;
             _translateService = translateService;
+            _patches = patches;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -75,6 +78,9 @@ namespace TranslateServer.Jobs
             await UsersInit();
             await FileNamesToUpper();
 
+            // await AddText("freddy_pharkas_cd", 660, "Damned flies!  This place is like a stable!");
+
+            //await AddMessageLabel("freddy_pharkas_cd");
             // await ParenthesesPatch("freddy_pharkas_cd");
             //await CheckDublicates("longbow_1_1");
             //await EscapeStrings();
@@ -85,10 +91,49 @@ namespace TranslateServer.Jobs
             _logger.LogInformation("Init complete");
         }
 
+        private async Task AddMessageLabel(string projectCode)
+        {
+            var project = await _projects.GetProject(projectCode);
+            var package = _sci.Load(project);
+
+            //Применяем патчи
+            var patches = (await _patches.Query(p => p.Project == projectCode && !p.Deleted)).ToList();
+            foreach (var p in patches)
+            {
+                var data = await _patches.GetContent(p.FileId);
+                if (p.FileName.ToLower().EndsWith(".msg"))
+                {
+                    package.SetPatch(p.FileName.ToUpper(), data);
+                }
+            }
+
+            foreach (var res in package.GetResources<ResMessage>())
+            {
+                var messages = res.GetMessages();
+                for (int i = 0; i < messages.Count; i++)
+                {
+                    var msg = messages[i];
+
+                    await _texts.Update(t => t.Project == projectCode && t.Volume == $"{res.Number}_msg" && t.Number == i)
+                        .Set(t => t.Description, $"Noun: {msg.Noun} Verb: {msg.Verb} Cond: {msg.Cond} Seq: {msg.Seq} Talker: {msg.Talker}")
+                        .Execute();
+                }
+            }
+        }
+
+        private async Task AddText(string projectCode, int messageNumber, string text)
+        {
+            var project = await _projects.GetProject(projectCode);
+            var volume = await _volumes.Get(v => v.Project == project.Code && v.Code == $"{messageNumber}_msg");
+            var index = (await _texts.Query(t => t.Project == project.Code && t.Volume == volume.Code)).Select(t => t.Number).Max() + 1;
+            await _texts.Insert(new TextResource(project, volume, index++, text));
+            Console.WriteLine("Text added");
+        }
+
         private async Task ParenthesesPatch(string project)
         {
             var translates = await _translate.Query(t => t.Project == project && t.IsTranslate && t.NextId == null && !t.Deleted);
-            
+
             var pattern = new Regex("\\([^A-Za-z0-9]+\\)");
 
             (char, char)[] mapping = new[] {
