@@ -91,7 +91,7 @@ namespace TranslateServer.Store
                             {
                                 if (rec.Seq > record.Seq)
                                 {
-                                    rec.Seq++;
+                                    rec.Seq = (byte)(rec.Seq + parts.Length - 1);
                                 }
                             }
                         }
