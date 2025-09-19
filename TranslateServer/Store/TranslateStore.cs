@@ -100,7 +100,7 @@ namespace TranslateServer.Store
                         {
                             for (int j = 0; j < parts.Length - 1; j++)
                             {
-                                records.Add(new MessageRecordV4(record.Noun, record.Verb, record.Cond, (byte)(record.Seq + 1), record.Talker, ""));
+                                records.Add(new MessageRecordV4(record.Noun, record.Verb, record.Cond, (byte)(record.Seq + 1 + j), record.Talker, ""));
                             }
                         }
                         else
