@@ -5,7 +5,9 @@ using Quartz;
 using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Sections;
+using SCI_Lib.Resources.Scripts1;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -107,15 +109,41 @@ namespace TranslateServer.Jobs
                 }
             }
 
+            Dictionary<ushort, string> objects = new();
+            var resInv = package.GetResource<ResScript>(15);
+            if (resInv.GetScript() is Script1 scr)
+            {
+                foreach (var obj in scr.Objects)
+                {
+                    if (obj.HasProperty("message"))
+                    {
+                        var msg = obj.GetProperty("message");
+                        if (msg != 65535)
+                        {
+                            objects[msg] = obj.Name;
+                        }
+                    }
+                }
+            }
+
             foreach (var res in package.GetResources<ResMessage>())
             {
+                Console.WriteLine(res.Number);
                 var messages = res.GetMessages();
                 for (int i = 0; i < messages.Count; i++)
                 {
                     var msg = messages[i];
 
+                    string verb;
+                    if (msg.Verb == 0)
+                        verb = "0";
+                    else if (objects.TryGetValue(msg.Verb, out var name))
+                        verb = $"{name} ({msg.Verb})";
+                    else
+                        verb = msg.Verb.ToString();
+
                     await _texts.Update(t => t.Project == projectCode && t.Volume == $"{res.Number}_msg" && t.Number == i)
-                        .Set(t => t.Description, $"Noun: {msg.Noun} Verb: {msg.Verb} Cond: {msg.Cond} Seq: {msg.Seq} Talker: {msg.Talker}")
+                        .Set(t => t.Description, $"Noun: {msg.Noun} Verb: {verb} Cond: {msg.Cond} Seq: {msg.Seq} Talker: {msg.Talker}")
                         .Execute();
                 }
             }

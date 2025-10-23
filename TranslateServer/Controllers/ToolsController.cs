@@ -721,6 +721,8 @@ namespace TranslateServer.Controllers
             public double Score { get; set; }
             public string Volume { get; set; }
             public int Number { get; set; }
+            public string SrcVolume { get; set; }
+            public int SrcNumber { get; set; }
         }
 
         [HttpPost("text_match/{project}")]
@@ -764,7 +766,9 @@ namespace TranslateServer.Controllers
                             Tr = tr.Text,
                             Score = best.Score,
                             Volume = txt.Volume,
-                            Number = txt.Number
+                            Number = txt.Number,
+                            SrcVolume = best.res.Volume,
+                            SrcNumber = best.res.Number
                         });
                         if (results.Count == request.Take)
                             break;
