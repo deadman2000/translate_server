@@ -729,7 +729,7 @@ namespace TranslateServer.Controllers
         public async Task<ActionResult> GetTextMatch(string project, MatchTextRequest request)
         {
             var notTr = await _texts.Query(t => t.Project == project && !t.HasTranslate);
-            var filtered = notTr.OrderBy(t => t.Number).AsEnumerable();
+            var filtered = notTr.OrderBy(t => t.Volume).ThenBy(t => t.Number).AsEnumerable();
             if (request.Skip != null)
             {
                 var skipSet = request.Skip.ToHashSet();
