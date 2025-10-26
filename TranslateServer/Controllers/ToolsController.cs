@@ -782,7 +782,7 @@ namespace TranslateServer.Controllers
 
             return Ok(new
             {
-                results,
+                results = results.OrderByDescending(r => r.Score),
                 skip
             });
         }
