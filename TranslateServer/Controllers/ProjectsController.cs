@@ -418,6 +418,13 @@ namespace TranslateServer.Controllers
             var translates = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
             var enc = Encoding.GetEncoding(866);
 
+            // Multiple translations check
+            var multiples = translates.GroupBy(t => t.GetCode())
+                .Where(g => g.Count() > 1)
+                .Select(g => g.First())
+                .Select(t=> new { t.Volume, t.Number })
+                .ToList();
+
             // Symbols check
             List<dynamic> symbols = new();
             foreach (var t in translates)
@@ -453,6 +460,7 @@ namespace TranslateServer.Controllers
 
             return Ok(new
             {
+                multiples,
                 symbols,
                 lines
             });

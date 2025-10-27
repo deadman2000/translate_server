@@ -110,17 +110,19 @@ namespace TranslateServer.Jobs
             }
 
             Dictionary<ushort, string> objects = new();
-            var resInv = package.GetResource<ResScript>(15);
-            if (resInv.GetScript() is Script1 scr)
             {
-                foreach (var obj in scr.Objects)
+                var resInv = package.GetResource<ResScript>(15);
+                if (resInv.GetScript() is Script1 scr)
                 {
-                    if (obj.HasProperty("message"))
+                    foreach (var obj in scr.Objects)
                     {
-                        var msg = obj.GetProperty("message");
-                        if (msg != 65535)
+                        if (obj.HasProperty("message"))
                         {
-                            objects[msg] = obj.Name;
+                            var msg = obj.GetProperty("message");
+                            if (msg != 65535)
+                            {
+                                objects[msg] = obj.Name;
+                            }
                         }
                     }
                 }
@@ -129,6 +131,24 @@ namespace TranslateServer.Jobs
             foreach (var res in package.GetResources<ResMessage>())
             {
                 Console.WriteLine(res.Number);
+
+                Dictionary<ushort, string> nouns = new();
+                var resScr = package.GetResource<ResScript>(res.Number);
+                if (resScr != null)
+                {
+                    if (resScr.GetScript() is Script1 scr)
+                    {
+                        foreach (var obj in scr.Objects)
+                        {
+                            if (obj.HasProperty("noun"))
+                            {
+                                var noun = obj.GetProperty("noun");
+                                nouns[noun] = obj.Name;
+                            }
+                        }
+                    }
+                }
+
                 var messages = res.GetMessages();
                 for (int i = 0; i < messages.Count; i++)
                 {
@@ -142,8 +162,13 @@ namespace TranslateServer.Jobs
                     else
                         verb = msg.Verb.ToString();
 
+                    if (nouns.TryGetValue(msg.Noun, out string noun))
+                        noun = $"{noun} ({msg.Noun})";
+                    else
+                        noun = msg.Noun.ToString();
+
                     await _texts.Update(t => t.Project == projectCode && t.Volume == $"{res.Number}_msg" && t.Number == i)
-                        .Set(t => t.Description, $"Noun: {msg.Noun} Verb: {verb} Cond: {msg.Cond} Seq: {msg.Seq} Talker: {msg.Talker}")
+                        .Set(t => t.Description, $"Noun: {noun} Verb: {verb} Cond: {msg.Cond} Seq: {msg.Seq} Talker: {msg.Talker}")
                         .Execute();
                 }
             }
