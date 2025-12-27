@@ -82,8 +82,7 @@ namespace TranslateServer.Jobs
 
             // await AddText("freddy_pharkas_cd", 660, "Damned flies!  This place is like a stable!");
 
-            //await AddMessageLabel("freddy_pharkas_cd");
-            // await ParenthesesPatch("freddy_pharkas_cd");
+            //await AddMessageLabel("freddy_pharkas");
             //await CheckDublicates("longbow_1_1");
             //await EscapeStrings();
             //await UpdateNullEngine();
@@ -157,6 +156,12 @@ namespace TranslateServer.Jobs
                     string verb;
                     if (msg.Verb == 0)
                         verb = "0";
+                    else if (msg.Verb == 1)
+                        verb = "look";
+                    else if (msg.Verb == 2)
+                        verb = "talk";
+                    else if (msg.Verb == 4)
+                        verb = "hand";
                     else if (objects.TryGetValue(msg.Verb, out var name))
                         verb = $"{name} ({msg.Verb})";
                     else
@@ -181,55 +186,6 @@ namespace TranslateServer.Jobs
             var index = (await _texts.Query(t => t.Project == project.Code && t.Volume == volume.Code)).Select(t => t.Number).Max() + 1;
             await _texts.Insert(new TextResource(project, volume, index++, text));
             Console.WriteLine("Text added");
-        }
-
-        private async Task ParenthesesPatch(string project)
-        {
-            var translates = await _translate.Query(t => t.Project == project && t.IsTranslate && t.NextId == null && !t.Deleted);
-
-            var pattern = new Regex("\\([^A-Za-z0-9]+\\)");
-
-            (char, char)[] mapping = new[] {
-                ('A', 'А'),
-                ('C', 'С'),
-                ('E', 'Е'),
-                ('H', 'Н'),
-                ('K', 'К'),
-                ('O', 'О'),
-                ('P', 'Р'),
-                ('T', 'Т'),
-                ('X', 'Х'),
-                ('a', 'а'),
-                ('c', 'с'),
-                ('e', 'е'),
-                ('o', 'о'),
-                ('x', 'х'),
-            };
-
-            foreach (var t in translates)
-            {
-                var result = pattern.Match(t.Text);
-                if (result.Success)
-                {
-                    var newPart = result.Value;
-                    foreach (var (to, from) in mapping)
-                    {
-                        newPart = newPart.Replace(from, to);
-                    }
-
-                    if (newPart == result.Value)
-                    {
-                        Console.WriteLine(result.Value);
-                        continue;
-                    }
-
-                    var newText = t.Text.Replace(result.Value, newPart);
-
-                    await _translateService.Submit(t.Project, t.Volume, t.Number, newText, "admin", true, t.Id);
-                }
-            }
-
-            Console.WriteLine();
         }
 
         private async Task CopyParser(string project, string fromProject)

@@ -12,6 +12,7 @@ namespace TranslateServer.Services
 
         public async Task<IEnumerable<SpellResult>> Spellcheck(string text)
         {
+            //return Array.Empty<SpellResult>();
             while (true)
             {
                 try

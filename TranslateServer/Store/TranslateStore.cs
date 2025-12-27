@@ -4,6 +4,7 @@ using SCI_Lib.Resources;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Model;
@@ -12,7 +13,7 @@ using TranslateServer.Services;
 
 namespace TranslateServer.Store
 {
-    public class TranslateStore : MongoBaseService<TextTranslate>
+    public partial class TranslateStore : MongoBaseService<TextTranslate>
     {
         public TranslateStore(MongoService mongo) : base(mongo, "Translate")
         {
@@ -77,6 +78,8 @@ namespace TranslateServer.Store
                     const string PartSeparator = "$next";
                     var translate = trStrings[i];
 
+                    translate = PatchRuBrackets(translate);
+
                     if (translate.Contains(PartSeparator) && res is ResMessage resMsg)
                     {
                         var parts = translate.Split(PartSeparator);
@@ -125,6 +128,49 @@ namespace TranslateServer.Store
                 resources.Add(res);
             }
             return resources;
+        }
+
+        [GeneratedRegex("\\([^A-Za-z0-9]+?\\)")]
+        private static partial Regex BracketsRegex();
+
+        private static (char, char)[] RuEnCharsMapping = new[] {
+            ('A', 'А'),
+            ('C', 'С'),
+            ('E', 'Е'),
+            ('H', 'Н'),
+            ('K', 'К'),
+            ('O', 'О'),
+            ('P', 'Р'),
+            ('T', 'Т'),
+            ('X', 'Х'),
+            ('a', 'а'),
+            ('c', 'с'),
+            ('e', 'е'),
+            ('o', 'о'),
+            ('x', 'х'),
+        };
+
+        // Заменяет русские символы в скобках на аналогичные английские, чтобы движок SCI не съел скобки
+        private static string PatchRuBrackets(string txt)
+        {
+            var result = BracketsRegex().Match(txt);
+            if (result.Success)
+            {
+                var newPart = result.Value;
+                foreach (var (to, from) in RuEnCharsMapping)
+                {
+                    newPart = newPart.Replace(from, to);
+                }
+
+                if (newPart == result.Value)
+                {
+                    return txt;
+                }
+
+                return txt.Replace(result.Value, newPart);
+            }
+
+            return txt;
         }
     }
 }
