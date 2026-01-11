@@ -134,7 +134,9 @@ namespace TranslateServer.Store
         private static partial Regex BracketsRegex();
 
         private static (char, char)[] RuEnCharsMapping = new[] {
+            // (en, ru)
             ('A', 'А'),
+            ('B', 'В'),
             ('C', 'С'),
             ('E', 'Е'),
             ('H', 'Н'),
