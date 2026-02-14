@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Services;
@@ -23,7 +24,6 @@ namespace TranslateServer.Tools
         private readonly TranslateStore _translates;
         private readonly Project _project;
         private SCI_Lib.SCIPackage _package;
-        private HashSet<string> _filesFilter;
 
         public Extractor(IServiceProvider serviceProvider, Project project)
         {
@@ -45,18 +45,6 @@ namespace TranslateServer.Tools
                 await ExtractSCI();
         }
 
-
-        public async Task ExtractFiles(params string[] files)
-        {
-            _filesFilter = files.Select(f=>f.ToUpper()).ToHashSet();
-
-            if (_project.Engine == "ags")
-                await ExtractAGS();
-            else
-                await ExtractSCI();
-        }
-
-
         public async Task ExtractSCI()
         {
             _package = _sci.Load(_project);
@@ -70,7 +58,6 @@ namespace TranslateServer.Tools
                 if (strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
                 if (volumesHash.Contains(txt.FileName)) continue;
-                if (!IsFilePass(txt.FileName)) continue;
                 Console.WriteLine(txt.FileName);
 
                 volumesHash.Add(txt.FileName);
@@ -92,7 +79,6 @@ namespace TranslateServer.Tools
                 if (strings == null || strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
                 if (volumesHash.Contains(scr.FileName)) continue;
-                if (!IsFilePass(scr.FileName)) continue;
                 Console.WriteLine(scr.FileName);
 
                 volumesHash.Add(scr.FileName);
@@ -161,7 +147,6 @@ namespace TranslateServer.Tools
                 if (records.Count == 0) continue;
                 if (!records.Any(r => !string.IsNullOrWhiteSpace(r.Text))) continue;
                 if (volumesHash.Contains(msg.FileName)) continue;
-                if (!IsFilePass(msg.FileName)) continue;
                 Console.WriteLine(msg.FileName);
 
                 volumesHash.Add(msg.FileName);
@@ -181,14 +166,6 @@ namespace TranslateServer.Tools
             }
         }
 
-        private bool IsFilePass(string fileName)
-        {
-            if (_filesFilter == null) return true;
-
-            fileName = Path.GetFileName(fileName);
-            return _filesFilter.Contains(fileName.ToUpper());
-        }
-
         private async Task ExtractAGS()
         {
             await ExtractTRA();
@@ -202,9 +179,8 @@ namespace TranslateServer.Tools
 
             foreach (var filePath in traFiles)
             {
-                if (!IsFilePass(filePath)) continue;
-
                 AGSTranslation translation = new();
+                translation.OriginalEncoding = Encoding.UTF8;
                 translation.Decompile(filePath);
 
                 var dir = Path.GetDirectoryName(filePath);
@@ -233,6 +209,7 @@ namespace TranslateServer.Tools
             foreach (var filePath in trsFiles)
             {
                 AGSTranslation translation = AGSTranslation.ReadSourceFile(filePath);
+                translation.OriginalEncoding = Encoding.UTF8;
 
                 var name = Path.GetFileName(filePath);
                 var volume = new Volume(_project, name);

@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AGSUnpacker.Lib" Version="0.6.3" />
+    <PackageReference Include="AGSUnpacker.Lib" Version="0.6.4" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
     <PackageReference Include="Flurl.Http" Version="3.2.4" />
     <PackageReference Include="FuzzierSharp" Version="3.0.1" />
