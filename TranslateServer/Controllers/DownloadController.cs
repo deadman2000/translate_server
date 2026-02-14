@@ -127,6 +127,13 @@ namespace TranslateServer.Controllers
                     else
                     {
                         var traPath = Path.Combine(path, vol.Name, "English.tra");
+                        var dest = $"{vol.Name}/Russian.tra";
+                        if (!Path.Exists(traPath))
+                        {
+                            traPath = Path.Combine(path, "English.tra");
+                            dest = "Russian.tra";
+                        }
+
                         if (Path.Exists(traPath))
                         {
                             AGSTranslation translation = new();
@@ -136,7 +143,7 @@ namespace TranslateServer.Controllers
                             foreach (var t in texts)
                                 translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
 
-                            var entry = archive.CreateEntry($"{vol.Name}/Russian.tra");
+                            var entry = archive.CreateEntry(dest);
 
                             var msTRA = new MemoryStream();
                             translation.TranslateEncoding = project.GetEncoding();

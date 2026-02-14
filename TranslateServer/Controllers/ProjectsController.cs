@@ -108,6 +108,8 @@ namespace TranslateServer.Controllers
         [HttpPost("{project}/upload")]
         public async Task<ActionResult> Upload(string project, [FromForm] IFormFile file)
         {
+            var proj = await _projects.GetProject(project);
+
             string targetDir = _sci.GetProjectPath(project);
             if (Directory.Exists(targetDir))
                 Directory.Delete(targetDir, true);
@@ -115,7 +117,9 @@ namespace TranslateServer.Controllers
             try
             {
                 await ExtractToDir(file, targetDir);
-                RenameFilesToUpper(targetDir);
+
+                if (proj.Engine == "sci")
+                    RenameFilesToUpper(targetDir);
 
                 await _projects.Update(p => p.Code == project && p.Status == ProjectStatus.New)
                     .Set(p => p.Status, ProjectStatus.TextExtract)

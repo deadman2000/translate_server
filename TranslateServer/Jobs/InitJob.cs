@@ -110,17 +110,19 @@ namespace TranslateServer.Jobs
 
             Dictionary<ushort, string> objects = new();
             {
-                var resInv = package.GetResource<ResScript>(15);
-                if (resInv.GetScript() is Script1 scr)
+                foreach (var res in package.GetResources<ResScript>())
                 {
-                    foreach (var obj in scr.Objects)
+                    if (res.GetScript() is Script1 scr)
                     {
-                        if (obj.HasProperty("message"))
+                        foreach (var obj in scr.Objects)
                         {
-                            var msg = obj.GetProperty("message");
-                            if (msg != 65535)
+                            if (obj.HasProperty("message"))
                             {
-                                objects[msg] = obj.Name;
+                                var msg = obj.GetProperty("message");
+                                if (msg != 65535)
+                                {
+                                    objects[msg] = obj.Name;
+                                }
                             }
                         }
                     }
