@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Services;
@@ -26,6 +25,7 @@ namespace TranslateServer.Controllers
         private readonly SuffixesStore _suffixes;
         private readonly SaidStore _saids;
         private readonly SynonymStore _synonyms;
+        private readonly TextsStore _texts;
 
         public DownloadController(SCIService sci,
             TranslateStore translate,
@@ -35,7 +35,8 @@ namespace TranslateServer.Controllers
             WordsStore words,
             SuffixesStore suffixes,
             SaidStore saids,
-            SynonymStore synonyms
+            SynonymStore synonyms,
+            TextsStore texts
         )
         {
             _sci = sci;
@@ -47,6 +48,7 @@ namespace TranslateServer.Controllers
             _suffixes = suffixes;
             _saids = saids;
             _synonyms = synonyms;
+            _texts = texts;
         }
 
         [HttpGet("source")]
@@ -105,9 +107,7 @@ namespace TranslateServer.Controllers
                         var trsPath = Path.Combine(path, vol.Name);
                         AGSTranslation translation = AGSTranslation.ReadSourceFile(trsPath);
 
-                        var texts = await _translate.Query(t => t.Project == project.Code && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
-                        foreach (var t in texts)
-                            translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+                        await ApplyTranslation(translation, project, vol);
 
                         string traPath;
                         if (volumes.Count > 1)
@@ -139,9 +139,7 @@ namespace TranslateServer.Controllers
                             AGSTranslation translation = new();
                             translation.Decompile(traPath);
 
-                            var texts = await _translate.Query(t => t.Project == project.Code && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
-                            foreach (var t in texts)
-                                translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+                            await ApplyTranslation(translation, project, vol);
 
                             var entry = archive.CreateEntry(dest);
 
@@ -175,6 +173,22 @@ namespace TranslateServer.Controllers
             await ms.CopyToAsync(Response.Body);
         }
 
+        private async Task ApplyTranslation(AGSTranslation translation, Project project, Volume vol)
+        {
+            var texts = await _translate.Query(t => t.Project == project.Code && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+            List<TextTranslate> newTexts = new();
+            foreach (var t in texts)
+            {
+                translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+                newTexts.Add(t);
+            }
+
+            foreach (var tr in newTexts)
+            {
+                var src = await _texts.Get(t => t.Project == project.Code && t.Volume == vol.Code && t.Number == tr.Number);
+                translation.Add(src.Text, tr.Text);
+            }
+        }
 
         private async Task GenerateSCIZip(Project proj, bool full)
         {
