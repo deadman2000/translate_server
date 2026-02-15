@@ -179,8 +179,10 @@ namespace TranslateServer.Controllers
             List<TextTranslate> newTexts = new();
             foreach (var t in texts)
             {
-                translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
-                newTexts.Add(t);
+                if (t.Number >= translation.TranslatedLines.Count)
+                    newTexts.Add(t);
+                else
+                    translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
             }
 
             foreach (var tr in newTexts)
