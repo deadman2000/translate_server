@@ -18,9 +18,10 @@ namespace TranslateServer.Services
             {
                 glossaryPairs = new object[]
                 {
-                    GlossaryPair("Oups", "Упс"),
-                    GlossaryPair("Asgard", "Асгард"),
-                    GlossaryPair("Ignatius", "Игнатий"),
+                    GlossaryPair("Ronflard", "Храпун"),
+                    GlossaryPair("Fingus", "Фингус"),
+                    GlossaryPair("Winkle", "Винкль"),
+                    GlossaryPair("Buffoon", "Буффон"),
                 }
             }
         };
@@ -33,20 +34,20 @@ namespace TranslateServer.Services
             YandexKey = config["YandexKey"];
         }
 
-        public async Task<IEnumerable<string>> Translate(IEnumerable<string> strings)
+        public async Task<IReadOnlyList<string>> Translate(IEnumerable<string> strings, string fromLanguage)
         {
             var response = await URL
                 .WithHeader("Authorization", "Api-Key " + YandexKey)
                 .PostJsonAsync(new
                 {
-                    sourceLanguageCode = "fr",
+                    sourceLanguageCode = fromLanguage,
                     targetLanguageCode = "ru",
                     texts = strings,
                     glossaryConfig = Glossary
                 });
 
             var result = await response.GetJsonAsync<TranslateResult>();
-            return result.Translations.Select(t => t.Text);
+            return result.Translations.Select(t => t.Text).ToArray();
         }
 
         public class TranslateResult

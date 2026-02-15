@@ -13,12 +13,18 @@ namespace TranslateServer.Controllers
     {
         private readonly ResCache _resCache;
         private readonly TextsStore _textsStore;
+        private readonly TranslateStore _translateStore;
         private readonly TranslateService _translateService;
 
-        public ExtApproveController(ResCache resCache, TextsStore textsStore, TranslateService translateService)
+        public ExtApproveController(
+            ResCache resCache,
+            TextsStore textsStore,
+            TranslateStore translateStore,
+            TranslateService translateService)
         {
             _resCache = resCache;
             _textsStore = textsStore;
+            _translateStore = translateStore;
             _translateService = translateService;
         }
 
@@ -57,7 +63,23 @@ namespace TranslateServer.Controllers
 
                 return Ok();
             }
+            
+            if (request.Type == "translate")
+            {
+                var translate = await _translateStore.Get(t => t.Project == request.Project && t.Volume == request.Volume && t.Text == request.Text);
+                if (translate != null)
+                {
+                    await _textsStore.Update()
+                                    .Where(t => t.Project == request.Project && t.Volume == request.Volume && t.Number == translate.Number && !t.TranslateApproved)
+                                    .Set(t => t.TranslateApproved, true)
+                                    .Execute();
 
+                    await _translateService.UpdateVolumeProgress(request.Project, request.Volume);
+                    await _translateService.UpdateProjectProgress(request.Project);
+                }
+
+                return Ok();
+            }
 
             string volume;
             int index;

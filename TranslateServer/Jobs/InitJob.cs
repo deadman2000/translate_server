@@ -41,6 +41,7 @@ namespace TranslateServer.Jobs
         private readonly SpellcheckCache _spellcheckCache;
         private readonly TranslateService _translateService;
         private readonly PatchesStore _patches;
+        private readonly YandexTranslateService _yandexTranslate;
 
         public InitJob(ILogger<InitJob> logger,
             UsersStore users,
@@ -56,7 +57,8 @@ namespace TranslateServer.Jobs
             SuffixesStore suffixes,
             SpellcheckCache spellcheckCache,
             TranslateService translateService,
-            PatchesStore patches)
+            PatchesStore patches,
+            YandexTranslateService yandexTranslate)
         {
             _logger = logger;
             _users = users;
@@ -73,6 +75,7 @@ namespace TranslateServer.Jobs
             _spellcheckCache = spellcheckCache;
             _translateService = translateService;
             _patches = patches;
+            _yandexTranslate = yandexTranslate;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -89,7 +92,56 @@ namespace TranslateServer.Jobs
             //await RepairHasTranslate("larry_5");
             //await Spellchecking();
             //await CopyParser("larry_3_pnc_v2", "larry_3");
+            //await TranslateDescriptions("gobliins_6", "fr");
             _logger.LogInformation("Init complete");
+        }
+
+        private async Task TranslateDescriptions(string projectCode, string fromLanguage)
+        {
+            var texts = await _texts.Query(t => t.Project == projectCode);
+
+            Regex regexRu = new Regex("[а-яА-Я]");
+            List<TextResource> buffer = new();
+            int charCount = 0;
+
+            foreach (var text in texts)
+            {
+                if (regexRu.IsMatch(text.Description))
+                {
+                    continue;
+                }
+
+                buffer.Add(text);
+                charCount += text.Description.Length;
+                if (charCount > 9000)
+                {
+                    await TranslateDescriptions(buffer, fromLanguage);
+                    buffer.Clear();
+                    charCount = 0;
+                }
+            }
+
+            if (buffer.Count > 0)
+                await TranslateDescriptions(buffer, fromLanguage);
+
+            _logger.LogInformation("Description translated {Project}", projectCode);
+        }
+
+        private async Task TranslateDescriptions(List<TextResource> texts, string fromLanguage)
+        {
+            var strings = texts.Select(t => t.Description);
+            var result = await _yandexTranslate.Translate(strings, fromLanguage);
+
+            for (int i = 0; i < texts.Count; i++)
+            {
+                var text = texts[i];
+                var translate = result[i];
+                await _texts.Update(t => t.Id == text.Id)
+                    .Set(t => t.Description, text.Description + "\n" + translate)
+                    .Execute();
+            }
+
+            _logger.LogInformation("Translated {Count} descriptions", texts.Count);
         }
 
         private async Task AddMessageLabel(string projectCode)
