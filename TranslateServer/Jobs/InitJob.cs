@@ -304,6 +304,9 @@ namespace TranslateServer.Jobs
             var projects = await _projects.All();
             foreach (var project in projects)
             {
+                if (project.Engine != "sci")
+                    continue;
+
                 var dir = _sci.GetProjectPath(project.Code);
 
                 if (!Directory.Exists(dir))

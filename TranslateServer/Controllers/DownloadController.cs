@@ -188,7 +188,7 @@ namespace TranslateServer.Controllers
             foreach (var tr in newTexts)
             {
                 var src = await _texts.Get(t => t.Project == project.Code && t.Volume == vol.Code && t.Number == tr.Number);
-                translation.Add(src.Text, tr.Text);
+                translation.Add(src.Text.Replace("\n", "["), tr.Text.Replace("\n", "["));
             }
         }
 
