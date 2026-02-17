@@ -54,9 +54,9 @@ namespace TranslateServer.Controllers
             if (request.Type == "source")
             {
                 await _textsStore.Update()
-                                .Where(t => t.Project == request.Project && t.Volume == request.Volume && t.Text == request.Text && !t.TranslateApproved)
-                                .Set(t => t.TranslateApproved, true)
-                                .Execute();
+                    .Where(t => t.Project == request.Project && t.Volume == request.Volume && t.Text == request.Text && !t.TranslateApproved)
+                    .Set(t => t.TranslateApproved, true)
+                    .Execute();
 
                 await _translateService.UpdateVolumeProgress(request.Project, request.Volume);
                 await _translateService.UpdateProjectProgress(request.Project);
@@ -66,13 +66,13 @@ namespace TranslateServer.Controllers
             
             if (request.Type == "translate")
             {
-                var translate = await _translateStore.Get(t => t.Project == request.Project && t.Volume == request.Volume && t.Text == request.Text);
-                if (translate != null)
+                var translates = await _translateStore.Query(t => t.Project == request.Project && t.Volume == request.Volume && t.Text == request.Text);
+                foreach (var translate in translates)
                 {
                     await _textsStore.Update()
-                                    .Where(t => t.Project == request.Project && t.Volume == request.Volume && t.Number == translate.Number && !t.TranslateApproved)
-                                    .Set(t => t.TranslateApproved, true)
-                                    .Execute();
+                        .Where(t => t.Project == request.Project && t.Volume == request.Volume && t.Number == translate.Number && !t.TranslateApproved)
+                        .Set(t => t.TranslateApproved, true)
+                        .Execute();
 
                     await _translateService.UpdateVolumeProgress(request.Project, request.Volume);
                     await _translateService.UpdateProjectProgress(request.Project);
