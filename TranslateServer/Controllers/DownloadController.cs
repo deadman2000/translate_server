@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Services;
@@ -105,7 +106,7 @@ namespace TranslateServer.Controllers
                     if (vol.Name.ToLower().EndsWith(".trs"))
                     {
                         var trsPath = Path.Combine(path, vol.Name);
-                        AGSTranslation translation = AGSTranslation.ReadSourceFile(trsPath);
+                        var translation = AGSTranslation.ReadSourceFile(trsPath);
 
                         await ApplyTranslation(translation, project, vol);
 
@@ -117,6 +118,7 @@ namespace TranslateServer.Controllers
                         var entry = archive.CreateEntry(traPath);
 
                         var msTRA = new MemoryStream();
+                        translation.OriginalEncoding = Encoding.UTF8;
                         translation.TranslateEncoding = project.GetEncoding();
                         translation.Compile(msTRA);
                         msTRA.Seek(0, SeekOrigin.Begin);
@@ -137,6 +139,7 @@ namespace TranslateServer.Controllers
                         if (Path.Exists(traPath))
                         {
                             AGSTranslation translation = new();
+                            translation.OriginalEncoding = Encoding.UTF8;
                             translation.Decompile(traPath);
 
                             await ApplyTranslation(translation, project, vol);
