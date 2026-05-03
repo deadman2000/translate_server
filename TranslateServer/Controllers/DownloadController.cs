@@ -180,13 +180,23 @@ namespace TranslateServer.Controllers
         private async Task ApplyTranslation(AGSTranslation translation, Project project, Volume vol)
         {
             var texts = await _translate.Query(t => t.Project == project.Code && t.Volume == vol.Code && !t.Deleted && t.NextId == null);
+            var sources = (await _texts.Query(t => t.Project == project.Code && t.Volume == vol.Code))
+                .ToDictionary(t => t.Number);
+
             List<TextTranslate> newTexts = new();
             foreach (var t in texts)
             {
                 if (t.Number >= translation.TranslatedLines.Count)
                     newTexts.Add(t);
                 else
-                    translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+                {
+                    var resSource = translation.TranslatedLines[t.Number];
+                    var source = sources[t.Number].Text.Replace("\n", "[");
+                    if (resSource != source)
+                        newTexts.Add(t);
+                    else
+                        translation.TranslatedLines[t.Number] = t.Text.Replace("\n", "[");
+                }
             }
 
             foreach (var tr in newTexts)
