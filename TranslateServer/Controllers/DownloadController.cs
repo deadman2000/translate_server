@@ -140,6 +140,7 @@ namespace TranslateServer.Controllers
                         {
                             AGSTranslation translation = new();
                             translation.OriginalEncoding = Encoding.UTF8;
+                            translation.Options["encoding"] = "UTF-8";
                             translation.Decompile(traPath);
 
                             await ApplyTranslation(translation, project, vol);
