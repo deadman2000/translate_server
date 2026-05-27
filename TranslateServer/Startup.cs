@@ -13,6 +13,8 @@ using TranslateServer.Jobs;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
 using TranslateServer.Store;
+using ModelContextProtocol.AspNetCore;
+using TranslateServer.Mcp;
 
 namespace TranslateServer
 {
@@ -52,6 +54,7 @@ namespace TranslateServer
                 });
 
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));
+            services.Configure<TranslateServer.Mcp.McpOptions>(Configuration.GetSection("Mcp"));
 
             services.AddScoped<MongoService>();
             services.AddScoped<UsersStore>();
@@ -81,6 +84,14 @@ namespace TranslateServer
             services.AddSingleton<RunnersService>();
             services.AddSingleton<ResCache>();
             services.AddSingleton<SpellcheckCache>();
+
+            // MCP
+            services.AddScoped<McpAuthorizationFilter>();
+            services.AddScoped<McpAgentService>();
+            services
+                .AddMcpServer()
+                .WithHttpTransport()
+                .WithTools<TranslateMcpTools>();
 
             if (!Configuration.GetValue("DisableJobs", false))
             {
@@ -126,9 +137,51 @@ namespace TranslateServer
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // Protect the real MCP endpoint (/mcp) with the same token as the REST API.
+            // Clients must send the token via header "X-MCP-Token" or "Authorization: Bearer ..."
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/mcp"))
+                {
+                    var mcpOptions = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<TranslateServer.Mcp.McpOptions>>().Value;
+
+                    if (!mcpOptions.Enabled)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status404NotFound;
+                        await context.Response.WriteAsJsonAsync(new { error = "MCP is disabled" });
+                        return;
+                    }
+
+                    string provided = null;
+                    if (context.Request.Headers.TryGetValue("X-MCP-Token", out var h1))
+                        provided = h1;
+                    else if (context.Request.Headers.TryGetValue("Authorization", out var h2))
+                    {
+                        var val = h2.ToString();
+                        if (val.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
+                            provided = val.Substring(7).Trim();
+                        else if (val.StartsWith("Token ", System.StringComparison.OrdinalIgnoreCase))
+                            provided = val.Substring(6).Trim();
+                    }
+
+                    if (string.IsNullOrEmpty(provided) || provided != mcpOptions.Token)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsJsonAsync(new { error = "Invalid or missing MCP token" });
+                        return;
+                    }
+                }
+
+                await next();
+            });
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+
+                // Real MCP protocol endpoint (for LM Studio, Claude Desktop, Cursor, etc.)
+                // Clients must authenticate using the MCP token (same as /api/mcp).
+                endpoints.MapMcp("/mcp");
             });
         }
     }

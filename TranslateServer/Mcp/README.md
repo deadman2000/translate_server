@@ -1,0 +1,87 @@
+# MCP / AI Agent Integration (Internal)
+
+This folder contains the MCP (Model Context Protocol) / LLM agent surface for TranslateServer.
+
+## Two Surfaces
+
+TranslateServer now exposes **two** interfaces for AI agents:
+
+1. **REST API** (legacy / convenient for direct calls)
+   - `POST /api/mcp/*`
+   - Protected by `X-MCP-Token` or `Authorization: Bearer`
+
+2. **Real MCP Protocol Server** (recommended for modern LLM clients)
+   - `POST /mcp` (SSE / Streamable HTTP transport)
+   - This is a **real** MCP server using the official `ModelContextProtocol` SDK.
+   - LLM clients (LM Studio, Claude Desktop, Cursor, Continue.dev, etc.) can connect natively.
+
+## Configuration
+
+Add to your `appsettings*.json` (or environment variables):
+
+```json
+"Mcp": {
+  "Enabled": true,
+  "Token": "your-very-long-secret-token-here",
+  "AgentName": "Claude-3.5-Sonnet"
+}
+```
+
+The same token protects both `/api/mcp` and the real MCP endpoint `/mcp`.
+
+## Connecting Real MCP Clients
+
+### LM Studio
+1. Go to **Program** → **MCP Servers** (or Agent settings).
+2. Add a new MCP server pointing to:
+   ```
+   http://localhost:5000/mcp
+   ```
+3. Configure the header `X-MCP-Token: <your-token>` (LM Studio supports custom headers for MCP).
+
+### Claude Desktop / Other clients
+For stdio-based clients you will need a small wrapper (we can add one later). HTTP transport works directly with many modern clients.
+
+### Cursor / Continue.dev
+Most tools that support remote MCP servers can point to `http://your-server/mcp` and pass the auth header.
+
+## Available MCP Tools
+
+| Tool                        | Description                                                                 |
+|----------------------------|-----------------------------------------------------------------------------|
+| `get_status`               | Server info + agent name                                                    |
+| `list_projects`            | All projects with progress stats                                            |
+| `list_volumes`             | Volumes inside a project                                                    |
+| `get_text_context`         | **Most powerful tool** — line + surrounding context + current translation + comments |
+| `list_texts`               | Paginated list with filters (untranslated / unapproved / etc.)              |
+| `search`                   | Full-text search in source + translations (critical for consistency)        |
+| `propose_translation`      | Submit a new AI translation (with optional reason + confidence)             |
+| `add_comment`              | Leave a review comment on any translation                                   |
+| `get_translation_history`  | Full edit history for a line                                                |
+
+## Best Practices for the LLM
+
+- Always call `get_text_context` before proposing a change.
+- Use `search` aggressively to keep terminology consistent.
+- Always provide a good `reason` when calling `propose_translation`.
+- Use `add_comment` to critique existing translations.
+
+## Security Notes
+
+- The MCP token is the only authentication mechanism for AI agents.
+- AI proposals are attributed to the `AgentName` configured in `McpOptions`.
+- By design, the AI agent **cannot approve** translations or delete other users' work.
+
+## Architecture
+
+- Business logic lives in `McpAgentService`.
+- REST surface = `McpController` (thin).
+- Real MCP tools = `TranslateMcpTools` (uses the same service).
+- Authentication for both surfaces is handled via `McpOptions.Token`.
+
+## Next Possible Improvements
+
+- Dedicated stdio MCP host (for Claude Desktop, etc.).
+- Store `reason`/`confidence` directly on `TextTranslate`.
+- Add glossary / terminology tools.
+- Support for multiple AI agents with different permission levels.
