@@ -146,3 +146,14 @@ The root `/.well-known/oauth-protected-resource` may not be reachable in such se
 - Store `reason`/`confidence` directly on `TextTranslate`.
 - Add glossary / terminology tools.
 - Support for multiple AI agents with different permission levels.
+
+
+## Grok Integration
+
+MCP address: https://quests-translate.ru/mcp
+
+Client ID: grok-mcp-client
+Authorization Endpoint: https://quests-translate.ru/api/oauth/authorize
+Token Endpoint: https://quests-translate.ru/api/oauth/token
+Client Secret: (empty)
+Scopes: mcp:access
