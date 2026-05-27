@@ -1,4 +1,5 @@
 ﻿using AGSUnpacker.Lib.Translation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using SCI_Lib.Resources;
@@ -69,8 +70,8 @@ namespace TranslateServer.Controllers
 
             ms.Seek(0, SeekOrigin.Begin);
             Response.StatusCode = 200;
-            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{project}_src.zip\"");
-            Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
+            Response.Headers.Append(HeaderNames.ContentDisposition, $"attachment; filename=\"{project}_src.zip\"");
+            Response.Headers.Append(HeaderNames.ContentType, "application/octet-stream");
             await ms.CopyToAsync(Response.Body);
         }
 
@@ -172,8 +173,8 @@ namespace TranslateServer.Controllers
 
             ms.Seek(0, SeekOrigin.Begin);
             Response.StatusCode = 200;
-            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{fileName}.zip\"");
-            Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
+            Response.Headers.Append(HeaderNames.ContentDisposition, $"attachment; filename=\"{fileName}.zip\"");
+            Response.Headers.Append(HeaderNames.ContentType, "application/octet-stream");
             await ms.CopyToAsync(Response.Body);
         }
 
@@ -292,8 +293,8 @@ namespace TranslateServer.Controllers
 
             ms.Seek(0, SeekOrigin.Begin);
             Response.StatusCode = 200;
-            Response.Headers.Add(HeaderNames.ContentDisposition, $"attachment; filename=\"{fileName}.zip\"");
-            Response.Headers.Add(HeaderNames.ContentType, "application/octet-stream");
+            Response.Headers.Append(HeaderNames.ContentDisposition, $"attachment; filename=\"{fileName}.zip\"");
+            Response.Headers.Append(HeaderNames.ContentType, "application/octet-stream");
             await ms.CopyToAsync(Response.Body);
         }
 
