@@ -130,6 +130,15 @@ namespace TranslateServer.Controllers
             if (!await _agent.ProjectExistsAsync(request.Project))
                 return NotFound(new { error = "Project not found" });
 
+            if (_agent.IsReadOnly)
+            {
+                return Unauthorized(new
+                {
+                    error = "This agent is read-only and cannot propose translations.",
+                    agentName = _agent.AgentName
+                });
+            }
+
             var result = await _agent.ProposeTranslationAsync(
                 request.Project, request.Volume, request.Number,
                 request.Text, request.Reason, request.Confidence);
@@ -151,6 +160,15 @@ namespace TranslateServer.Controllers
         {
             if (string.IsNullOrWhiteSpace(request?.TranslateId) || string.IsNullOrWhiteSpace(request.Text))
                 return BadRequest(new { error = "TranslateId and Text are required" });
+
+            if (_agent.IsReadOnly)
+            {
+                return Unauthorized(new
+                {
+                    error = "This agent is read-only and cannot add comments.",
+                    agentName = _agent.AgentName
+                });
+            }
 
             var comment = await _agent.AddCommentAsync(request.TranslateId, request.Text);
             if (comment == null) return NotFound();

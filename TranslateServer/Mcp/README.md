@@ -15,19 +15,65 @@ TranslateServer now exposes **two** interfaces for AI agents:
    - This is a **real** MCP server using the official `ModelContextProtocol` SDK.
    - LLM clients (LM Studio, Claude Desktop, Cursor, Continue.dev, etc.) can connect natively.
 
-## Configuration
+## Configuration (Multiple Agents)
 
-Add to your `appsettings*.json` (or environment variables):
+The system supports **multiple AI agents**, each with its own token and attribution name.
+
+### Configuration
 
 ```json
 "Mcp": {
   "Enabled": true,
-  "Token": "your-very-long-secret-token-here",
-  "AgentName": "Claude-3.5-Sonnet"
+  "Agents": [
+    {
+      "Token": "claude-secret-xxx",
+      "AgentName": "Claude-3.5-Sonnet",
+      "Description": "Main Claude agent"
+    },
+    {
+      "Token": "grok-secret-yyy",
+      "AgentName": "Grok-4",
+      "Description": "Grok agent for heavy reasoning tasks"
+    },
+    {
+      "Token": "qwen-local-token",
+      "AgentName": "Qwen2.5-32B-Local",
+      "Description": "Local Qwen model"
+    },
+    {
+      "Token": "readonly-audit-token-999",
+      "AgentName": "Audit-Bot",
+      "Description": "Read-only agent for analysis and searching",
+      "ReadOnly": true
+    }
+  ]
 }
 ```
 
-The same token protects both `/api/mcp` and the real MCP endpoint `/mcp`.
+The `Agents` array is required. Each entry must have at least `Token` and `AgentName`.
+
+The same token mechanism protects both `/api/mcp` (REST) and `/mcp` (real MCP protocol).
+
+### Read-only agents
+
+You can mark an agent as read-only:
+
+```json
+{
+  "Token": "readonly-token-abc",
+  "AgentName": "Audit-Bot",
+  "ReadOnly": true
+}
+```
+
+Such agents can use:
+- `list_projects`, `list_volumes`, `get_text_context`, `list_texts`, `search`, `get_translation_history`, `get_status`
+
+They **cannot** use:
+- `propose_translation`
+- `add_comment`
+
+This is useful for analysis bots, auditors, or agents you want to restrict from modifying translations.
 
 ## Connecting Real MCP Clients
 
@@ -77,7 +123,7 @@ Most tools that support remote MCP servers can point to `http://your-server/mcp`
 - Business logic lives in `McpAgentService`.
 - REST surface = `McpController` (thin).
 - Real MCP tools = `TranslateMcpTools` (uses the same service).
-- Authentication for both surfaces is handled via `McpOptions.Token`.
+- Authentication for both surfaces is handled via the `Agents[].Token` values.
 
 ## Next Possible Improvements
 

@@ -17,6 +17,7 @@ namespace TranslateServer.Mcp
     public class McpAgentService
     {
         private readonly McpOptions _options;
+        private readonly McpAgentContext _agentContext;
         private readonly ProjectsStore _projects;
         private readonly VolumesStore _volumes;
         private readonly TextsStore _texts;
@@ -27,6 +28,7 @@ namespace TranslateServer.Mcp
 
         public McpAgentService(
             IOptions<McpOptions> options,
+            McpAgentContext agentContext,
             ProjectsStore projects,
             VolumesStore volumes,
             TextsStore texts,
@@ -36,6 +38,7 @@ namespace TranslateServer.Mcp
             TranslateService translateService)
         {
             _options = options.Value;
+            _agentContext = agentContext;
             _projects = projects;
             _volumes = volumes;
             _texts = texts;
@@ -45,7 +48,16 @@ namespace TranslateServer.Mcp
             _translateService = translateService;
         }
 
-        public string AgentName => _options.AgentName ?? "AI";
+        /// <summary>
+        /// Returns the name of the currently authenticated agent for this request.
+        /// Falls back to "AI" if no agent context is available.
+        /// </summary>
+        public string AgentName => _agentContext?.AgentName ?? "AI";
+
+        /// <summary>
+        /// Whether the current agent is restricted to read-only access.
+        /// </summary>
+        public bool IsReadOnly => _agentContext?.IsReadOnly ?? false;
 
         // ============================================
         // DISCOVERY
@@ -57,6 +69,7 @@ namespace TranslateServer.Mcp
             {
                 enabled = _options.Enabled,
                 agentName = AgentName,
+                readOnly = IsReadOnly,
                 serverTime = DateTime.UtcNow
             };
         }
@@ -268,6 +281,15 @@ namespace TranslateServer.Mcp
 
         public async Task<object> ProposeTranslationAsync(string project, string volume, int number, string text, string reason, double? confidence)
         {
+            if (IsReadOnly)
+            {
+                return new
+                {
+                    error = "This agent is read-only and cannot propose translations.",
+                    agentName = AgentName
+                };
+            }
+
             var translate = await _translateService.Submit(
                 project,
                 volume,
@@ -306,6 +328,13 @@ namespace TranslateServer.Mcp
 
         public async Task<Comment> AddCommentAsync(string translateId, string text)
         {
+            if (IsReadOnly)
+            {
+                // We return null here. The caller (controller/tools) should check IsReadOnly first for better error messages.
+                // Returning null will result in "Translation not found" which is not ideal, so we handle it higher up.
+                return null;
+            }
+
             var tr = await _translates.GetById(translateId);
             if (tr == null)
                 return null;

@@ -90,6 +90,15 @@ public class TranslateMcpTools
         [Description("Explanation / reasoning for this translation choice (highly recommended)")] string reason = "",
         [Description("Confidence score from 0.0 to 1.0")] double? confidence = null)
     {
+        if (_agent.IsReadOnly)
+        {
+            return new
+            {
+                error = "This agent is configured as read-only and cannot create new translations.",
+                agentName = _agent.AgentName
+            };
+        }
+
         var result = await _agent.ProposeTranslationAsync(project, volume, number, text, reason, confidence);
 
         if (result == null)
@@ -104,6 +113,15 @@ public class TranslateMcpTools
         [Description("ID of the translation to comment on")] string translateId,
         [Description("Comment text")] string text)
     {
+        if (_agent.IsReadOnly)
+        {
+            return new
+            {
+                error = "This agent is configured as read-only and cannot add comments.",
+                agentName = _agent.AgentName
+            };
+        }
+
         var comment = await _agent.AddCommentAsync(translateId, text);
 
         if (comment == null)

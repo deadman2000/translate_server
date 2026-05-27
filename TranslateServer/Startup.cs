@@ -13,7 +13,6 @@ using TranslateServer.Jobs;
 using TranslateServer.Mongo;
 using TranslateServer.Services;
 using TranslateServer.Store;
-using ModelContextProtocol.AspNetCore;
 using TranslateServer.Mcp;
 
 namespace TranslateServer
@@ -54,7 +53,7 @@ namespace TranslateServer
                 });
 
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));
-            services.Configure<TranslateServer.Mcp.McpOptions>(Configuration.GetSection("Mcp"));
+            services.Configure<McpOptions>(Configuration.GetSection("Mcp"));
 
             services.AddScoped<MongoService>();
             services.AddScoped<UsersStore>();
@@ -85,9 +84,12 @@ namespace TranslateServer
             services.AddSingleton<ResCache>();
             services.AddSingleton<SpellcheckCache>();
 
-            // MCP
+            // MCP / AI agent support (isolated from main cookie auth)
             services.AddScoped<McpAuthorizationFilter>();
+            services.AddScoped<McpAgentContext>();
             services.AddScoped<McpAgentService>();
+
+            // Real MCP server (official SDK) - exposed at /mcp
             services
                 .AddMcpServer()
                 .WithHttpTransport()
@@ -137,13 +139,13 @@ namespace TranslateServer
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Protect the real MCP endpoint (/mcp) with the same token as the REST API.
-            // Clients must send the token via header "X-MCP-Token" or "Authorization: Bearer ..."
+            // Protect the real MCP endpoint (/mcp) and set current agent context
             app.Use(async (context, next) =>
             {
                 if (context.Request.Path.StartsWithSegments("/mcp"))
                 {
                     var mcpOptions = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<TranslateServer.Mcp.McpOptions>>().Value;
+                    var agentContext = context.RequestServices.GetRequiredService<TranslateServer.Mcp.McpAgentContext>();
 
                     if (!mcpOptions.Enabled)
                     {
@@ -152,24 +154,29 @@ namespace TranslateServer
                         return;
                     }
 
-                    string provided = null;
+                    string providedToken = null;
                     if (context.Request.Headers.TryGetValue("X-MCP-Token", out var h1))
-                        provided = h1;
+                        providedToken = h1;
                     else if (context.Request.Headers.TryGetValue("Authorization", out var h2))
                     {
                         var val = h2.ToString();
                         if (val.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
-                            provided = val.Substring(7).Trim();
+                            providedToken = val.Substring(7).Trim();
                         else if (val.StartsWith("Token ", System.StringComparison.OrdinalIgnoreCase))
-                            provided = val.Substring(6).Trim();
+                            providedToken = val.Substring(6).Trim();
                     }
 
-                    if (string.IsNullOrEmpty(provided) || provided != mcpOptions.Token)
+                    var agent = mcpOptions.GetAgentByToken(providedToken);
+
+                    if (agent == null)
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsJsonAsync(new { error = "Invalid or missing MCP token" });
                         return;
                     }
+
+                    // Set the authenticated agent for this request (used by McpAgentService)
+                    agentContext.SetCurrentAgent(agent);
                 }
 
                 await next();

@@ -13,10 +13,14 @@ namespace TranslateServer.Mcp
     public class McpAuthorizationFilter : IAsyncActionFilter
     {
         private readonly McpOptions _options;
+        private readonly McpAgentContext _agentContext;
 
-        public McpAuthorizationFilter(IOptions<McpOptions> options)
+        public McpAuthorizationFilter(
+            IOptions<McpOptions> options,
+            McpAgentContext agentContext)
         {
             _options = options.Value;
+            _agentContext = agentContext;
         }
 
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -27,19 +31,17 @@ namespace TranslateServer.Mcp
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(_options.Token))
-            {
-                context.Result = new UnauthorizedObjectResult(new { error = "MCP access is not configured on the server." });
-                return;
-            }
-
             string providedToken = ExtractToken(context.HttpContext.Request);
+            var agent = _options.GetAgentByToken(providedToken);
 
-            if (string.IsNullOrEmpty(providedToken) || !string.Equals(providedToken, _options.Token, StringComparison.Ordinal))
+            if (agent == null)
             {
                 context.Result = new UnauthorizedObjectResult(new { error = "Invalid or missing MCP token." });
                 return;
             }
+
+            // Store the authenticated agent for this request
+            _agentContext.SetCurrentAgent(agent);
 
             // Token is valid. Continue to the action.
             // We do not modify the User principal to avoid any side effects on other code.
