@@ -38,7 +38,9 @@ namespace TranslateServer
                                   });
             });
 
-            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            var jwtOptions = Configuration.GetSection("Mcp:Jwt").Get<McpJwtOptions>();
+
+            var authBuilder = services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(o => {
                     o.Events.OnRedirectToLogin = c =>
                     {
@@ -51,6 +53,35 @@ namespace TranslateServer
                         return Task.CompletedTask;
                     };
                 });
+
+            // Add JWT Bearer for MCP OAuth clients (Grok, etc.)
+            if (jwtOptions?.Enabled == true)
+            {
+                authBuilder.AddJwtBearer("McpJwt", options =>
+                {
+                    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                    {
+                        ValidateIssuer = jwtOptions.ValidateIssuer,
+                        ValidateAudience = jwtOptions.ValidateAudience,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = jwtOptions.Issuer,
+                        ValidAudience = jwtOptions.Audience,
+                    };
+
+                    if (!string.IsNullOrEmpty(jwtOptions.Authority))
+                    {
+                        options.Authority = jwtOptions.Authority;
+                    }
+
+                    if (!string.IsNullOrEmpty(jwtOptions.SigningKey))
+                    {
+                        var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                            System.Text.Encoding.UTF8.GetBytes(jwtOptions.SigningKey));
+                        options.TokenValidationParameters.IssuerSigningKey = key;
+                    }
+                });
+            }
 
             services.Configure<ServerConfig>(Configuration.GetSection("Server"));
             services.Configure<McpOptions>(Configuration.GetSection("Mcp"));
@@ -88,6 +119,7 @@ namespace TranslateServer
             services.AddScoped<McpAuthorizationFilter>();
             services.AddScoped<McpAgentContext>();
             services.AddScoped<McpAgentService>();
+            services.AddSingleton<OAuthServerService>();
 
             // Real MCP server (official SDK) - exposed at /mcp
             services
@@ -139,7 +171,10 @@ namespace TranslateServer
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Protect the real MCP endpoint (/mcp) and set current agent context
+            // Protect the real MCP endpoint (/mcp) and set current agent context.
+            // Supports two authentication methods:
+            // 1. Static tokens (X-MCP-Token or simple Bearer) - from Mcp:Agents[]
+            // 2. JWT Bearer tokens - for OAuth clients like Grok (when Mcp:Jwt.Enabled = true)
             app.Use(async (context, next) =>
             {
                 if (context.Request.Path.StartsWithSegments("/mcp"))
@@ -154,6 +189,9 @@ namespace TranslateServer
                         return;
                     }
 
+                    McpAgent agent = null;
+
+                    // === Method 1: Static token (existing behavior) ===
                     string providedToken = null;
                     if (context.Request.Headers.TryGetValue("X-MCP-Token", out var h1))
                         providedToken = h1;
@@ -161,21 +199,73 @@ namespace TranslateServer
                     {
                         var val = h2.ToString();
                         if (val.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
-                            providedToken = val.Substring(7).Trim();
+                        {
+                            var bearerValue = val.Substring(7).Trim();
+                            // Only treat as static token if it's not a JWT (no dots)
+                            if (!bearerValue.Contains('.'))
+                                providedToken = bearerValue;
+                        }
                         else if (val.StartsWith("Token ", System.StringComparison.OrdinalIgnoreCase))
+                        {
                             providedToken = val.Substring(6).Trim();
+                        }
                     }
 
-                    var agent = mcpOptions.GetAgentByToken(providedToken);
+                    if (!string.IsNullOrEmpty(providedToken))
+                    {
+                        agent = mcpOptions.GetAgentByToken(providedToken);
+                    }
+
+                    // === Method 2: JWT Bearer (OAuth / Grok support) ===
+                    if (agent == null && mcpOptions.Jwt?.Enabled == true)
+                    {
+                        var authService = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Authentication.IAuthenticationService>();
+                        var authResult = await authService.AuthenticateAsync(context, "McpJwt");
+
+                        if (authResult?.Succeeded == true && authResult.Principal != null)
+                        {
+                            var claims = authResult.Principal;
+
+                            // Try to extract a nice agent name from claims
+                            string agentName = claims.FindFirst(mcpOptions.Jwt.AgentNameClaim)?.Value
+                                            ?? claims.FindFirst(mcpOptions.Jwt.FallbackAgentNameClaim)?.Value
+                                            ?? claims.FindFirst("client_id")?.Value
+                                            ?? "OAuth-Agent";
+
+                            agent = new McpAgent
+                            {
+                                Token = "jwt-oauth",
+                                AgentName = agentName,
+                                Description = "Authenticated via OAuth/JWT",
+                                Enabled = true,
+                                ReadOnly = false // Can be extended later based on scopes
+                            };
+                        }
+                    }
 
                     if (agent == null)
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsJsonAsync(new { error = "Invalid or missing MCP token" });
+
+                        var wwwAuthenticate = "Bearer realm=\"MCP\", error=\"invalid_token\"";
+                        if (mcpOptions.Jwt?.Enabled == true)
+                        {
+                            wwwAuthenticate += $", resource_metadata=\"{context.Request.Scheme}://{context.Request.Host}/api/.well-known/oauth-protected-resource\"";
+                        }
+
+                        context.Response.Headers["WWW-Authenticate"] = wwwAuthenticate;
+
+                        await context.Response.WriteAsJsonAsync(new
+                        {
+                            error = "Invalid or missing MCP authentication (token or JWT)",
+                            resource_metadata = mcpOptions.Jwt?.Enabled == true
+                                ? $"{context.Request.Scheme}://{context.Request.Host}/api/.well-known/oauth-protected-resource"
+                                : (string)null
+                        });
                         return;
                     }
 
-                    // Set the authenticated agent for this request (used by McpAgentService)
+                    // Set the authenticated agent for this request
                     agentContext.SetCurrentAgent(agent);
                 }
 

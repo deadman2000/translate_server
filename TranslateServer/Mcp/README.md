@@ -114,8 +114,14 @@ Most tools that support remote MCP servers can point to `http://your-server/mcp`
 
 ## Security Notes
 
-- The MCP token is the only authentication mechanism for AI agents.
-- AI proposals are attributed to the `AgentName` configured in `McpOptions`.
+- Two authentication methods are supported:
+  1. **Static tokens** (`X-MCP-Token` or simple `Bearer`) — defined in `Mcp:Agents[]`
+  2. **JWT Bearer** — for OAuth clients (Grok, Claude with OAuth, etc.)
+
+- Enable JWT support in `Mcp:Jwt` section when you want to allow connections from Grok.
+
+- AI proposals are attributed using either the static `AgentName` or claims from the JWT (`name`, `sub`, etc.).
+
 - By design, the AI agent **cannot approve** translations or delete other users' work.
 
 ## Architecture
@@ -124,6 +130,15 @@ Most tools that support remote MCP servers can point to `http://your-server/mcp`
 - REST surface = `McpController` (thin).
 - Real MCP tools = `TranslateMcpTools` (uses the same service).
 - Authentication for both surfaces is handled via the `Agents[].Token` values.
+
+### Important: Reverse Proxy
+
+If your backend is behind a reverse proxy that only forwards `/api/*` and `/mcp/*`, make sure to also forward:
+
+- `/api/oauth/*` (for the built-in OAuth server)
+- `/api/.well-known/oauth-protected-resource` (OAuth metadata discovery)
+
+The root `/.well-known/oauth-protected-resource` may not be reachable in such setups.
 
 ## Next Possible Improvements
 

@@ -27,6 +27,18 @@ namespace TranslateServer.Mcp
         public List<McpAgent> Agents { get; set; } = new();
 
         /// <summary>
+        /// JWT / OAuth settings. Enable this when you want to allow connections
+        /// from Grok, Claude (OAuth), or other clients that use proper OAuth/JWT.
+        /// </summary>
+        public McpJwtOptions Jwt { get; set; } = new();
+
+        /// <summary>
+        /// Registered OAuth 2.0 clients that are allowed to perform authorization flows
+        /// against this MCP server (for Grok, Claude, Cursor, etc.).
+        /// </summary>
+        public List<OAuthClient> OAuthClients { get; set; } = new();
+
+        /// <summary>
         /// Tries to find an agent by its token.
         /// Returns null if token is invalid, disabled, or MCP is globally disabled.
         /// </summary>
