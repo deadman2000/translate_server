@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Web;
 using TranslateServer.Mcp;
 
 namespace TranslateServer.Controllers
@@ -12,7 +13,7 @@ namespace TranslateServer.Controllers
     /// Supports Authorization Code Flow + PKCE for MCP clients (Grok, etc.).
     /// </summary>
     [Route("api/oauth")]
-    public class OAuthController : Controller
+    public class OAuthController : ControllerBase
     {
         private readonly OAuthServerService _oauthService;
         private readonly McpOptions _mcpOptions;
@@ -46,24 +47,56 @@ namespace TranslateServer.Controllers
             if (response_type != "code")
                 return BadRequest("Only response_type=code is supported");
 
-            // If user is not logged in via the main application, redirect to login
+            // If user is not logged in via the main application, we cannot show consent.
+            // In a reverse-proxy setup where only /api/* and /mcp/* are exposed,
+            // the main login page is usually not reachable.
             if (!User.Identity?.IsAuthenticated ?? true)
             {
-                // For simplicity we redirect to the main login page
-                var returnUrl = HttpContext.Request.Path + HttpContext.Request.QueryString;
-                return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}");
+                return Content("<html><body><h2>Authentication required</h2>" +
+                               "<p>Please log in through the main application first, then try the OAuth flow again.</p>" +
+                               "</body></html>", "text/html");
             }
 
-            // Show consent screen
-            ViewBag.ClientName = client.Name;
-            ViewBag.Scope = scope ?? "mcp:access";
-            ViewBag.ClientId = client_id;
-            ViewBag.RedirectUri = redirect_uri;
-            ViewBag.State = state;
-            ViewBag.CodeChallenge = code_challenge;
-            ViewBag.CodeChallengeMethod = code_challenge_method;
+            // Return a self-contained consent page (no Razor views / TempData required)
+            string html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Authorization Request</title>
+    <style>
+        body {{ font-family: system-ui, -apple-system, sans-serif; max-width: 480px; margin: 60px auto; padding: 20px; line-height: 1.5; }}
+        .card {{ border: 1px solid #ddd; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }}
+        .buttons {{ margin-top: 24px; display: flex; gap: 12px; }}
+        button {{ padding: 10px 24px; font-size: 15px; border-radius: 6px; cursor: pointer; border: none; }}
+        .allow {{ background: #0d6efd; color: white; }}
+        .deny {{ background: #6c757d; color: white; }}
+        code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }}
+    </style>
+</head>
+<body>
+    <div class='card'>
+        <h2>Authorization Request</h2>
+        <p><strong>{client.Name}</strong> wants to connect to your MCP server.</p>
+        <p>Requested scope: <code>{HttpUtility.HtmlEncode(scope ?? "mcp:access")}</code></p>
+        
+        <form method='post' action='/api/oauth/authorize'>
+            <input type='hidden' name='client_id' value='{HttpUtility.HtmlEncode(client_id)}' />
+            <input type='hidden' name='redirect_uri' value='{HttpUtility.HtmlEncode(redirect_uri)}' />
+            <input type='hidden' name='state' value='{HttpUtility.HtmlEncode(state)}' />
+            <input type='hidden' name='code_challenge' value='{HttpUtility.HtmlEncode(code_challenge)}' />
+            <input type='hidden' name='code_challenge_method' value='{HttpUtility.HtmlEncode(code_challenge_method)}' />
 
-            return View("Consent");
+            <div class='buttons'>
+                <button type='submit' name='action' value='allow' class='allow'>Allow access</button>
+                <button type='submit' name='action' value='deny' class='deny'>Deny</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>";
+
+            return Content(html, "text/html");
         }
 
         /// <summary>
