@@ -1,5 +1,5 @@
 ﻿using MongoDB.Driver;
-using MongoDB.Driver.Linq;
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
@@ -50,7 +50,7 @@ namespace TranslateServer.Services
             return new MongoQuery<T>(_collection);
         }
 
-        public IMongoQueryable<T> Queryable()
+        public IQueryable<T> Queryable()
         {
             return _collection.AsQueryable();
         }

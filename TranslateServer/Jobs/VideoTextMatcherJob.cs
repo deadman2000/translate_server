@@ -2,8 +2,10 @@
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Quartz;
+using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Model;
@@ -14,7 +16,7 @@ namespace TranslateServer.Jobs
 {
     public class VideoTextMatcherJob : IJob
     {
-        public static void Schedule(IServiceCollectionQuartzConfigurator q)
+        public static void Schedule(IQuartzBuilder q)
         {
             if (Debugger.IsAttached)
             {
@@ -28,9 +30,9 @@ namespace TranslateServer.Jobs
             else
             {
                 q.ScheduleJob<VideoTextMatcherJob>(j => j
-                    .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
+                    .StartAt(DateTimeOffset.UtcNow.AddSeconds(10))
                     .WithSimpleSchedule(x => x
-                        .WithIntervalInMinutes(1)
+                        .WithInterval(TimeSpan.FromMinutes(1))
                         .RepeatForever())
                 );
             }
@@ -55,7 +57,7 @@ namespace TranslateServer.Jobs
             _tasks = tasks;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await ProcessTexts();
             await CompleteVideos();

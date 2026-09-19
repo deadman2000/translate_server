@@ -10,7 +10,6 @@ namespace TranslateServer.Mongo
         {
             var cs = configuration.GetConnectionString("Mongo");
             var mongoClientSettings = MongoClientSettings.FromUrl(new MongoUrl(cs));
-            mongoClientSettings.LinqProvider = MongoDB.Driver.Linq.LinqProvider.V2;
 
             /*if (System.Diagnostics.Debugger.IsAttached)
                 mongoClientSettings.ClusterConfigurator = cb =>

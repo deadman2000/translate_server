@@ -3,3 +3,8 @@
 .dockerignore
 .vs
 Dockerfile
+**/bin
+**/obj
+**/resources
+**/TestResults
+*.log

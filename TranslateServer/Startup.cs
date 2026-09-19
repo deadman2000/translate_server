@@ -131,11 +131,9 @@ namespace TranslateServer
             {
                 services.AddQuartz(q =>
                 {
-                    q.SchedulerId = "Scheduler-Core";
-                    q.UseMicrosoftDependencyInjectionJobFactory();
-                    q.UseSimpleTypeLoader();
+                    q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
                     q.UseInMemoryStore();
-                    q.UseDedicatedThreadPool(tp =>
+                    q.UseDefaultThreadPool(tp =>
                     {
                         tp.MaxConcurrency = 1;
                     });

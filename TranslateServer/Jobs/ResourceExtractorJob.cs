@@ -7,6 +7,7 @@ using SCI_Lib.SCI0;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Services;
@@ -26,12 +27,12 @@ namespace TranslateServer.Jobs
         private readonly TranslateService _translateService;
         private readonly SCIService _sci;
 
-        public static void Schedule(IServiceCollectionQuartzConfigurator q)
+        public static void Schedule(IQuartzBuilder q)
         {
             q.ScheduleJob<ResourceExtractorJob>(j => j
-                .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(10))
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(1)
+                    .WithInterval(TimeSpan.FromMinutes(1))
                     .RepeatForever())
             );
         }
@@ -57,7 +58,7 @@ namespace TranslateServer.Jobs
             _sci = sci;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await TextExtract();
             await ResExtract();

@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Model.Yandex;
@@ -21,7 +22,7 @@ namespace TranslateServer.Jobs
 {
     class InitJob : IJob
     {
-        public static void Schedule(IServiceCollectionQuartzConfigurator q)
+        public static void Schedule(IQuartzBuilder q)
         {
             q.ScheduleJob<InitJob>(j => j.StartNow());
         }
@@ -78,7 +79,7 @@ namespace TranslateServer.Jobs
             _yandexTranslate = yandexTranslate;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await UsersInit();
             await FileNamesToUpper();
