@@ -31,6 +31,9 @@ namespace TranslateServer.Store
                 bool changed = false;
                 foreach (var doc in gr)
                 {
+                    if (string.IsNullOrEmpty(doc.Patch))
+                        continue;
+
                     try
                     {
                         if (ss.Saids[doc.Index].Set(doc.Patch))
