@@ -250,11 +250,11 @@ namespace TranslateServer.Controllers
             return Ok();
         }
 
-        [HttpPost("said/{project}/{num}")]
+        [HttpPost("said_colonel/{project}/{num}")]
         public async Task<ActionResult> ExtractSaids(string project, ushort num)
         {
             var package = await _sci.Load(project);
-            var extract = new SaidExtractWeb(package);
+            var extract = new SaidColonelExtract(package);
             var saids = extract.Process(num);
             var volume = $"text_{num:D3}";
             for (int ind = 0; ind < saids.Length; ind++)

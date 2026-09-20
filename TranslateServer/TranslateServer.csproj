@@ -16,7 +16,7 @@
     <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
-    <PackageReference Include="SCI_Lib" Version="1.4.0" />
+    <PackageReference Include="SCI_Lib" Version="1.4.1" />
   </ItemGroup>
 
 </Project>

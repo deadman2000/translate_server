@@ -8,13 +8,14 @@ using System.Linq;
 
 namespace TranslateServer.Helpers
 {
-    public class SaidExtractWeb
+
+    public class SaidColonelExtract
     {
         static readonly List<string> themes = new List<string> { "Сели", "Кларенс", "полковник", "Этель", "Фифи", "Герти", "Глория", "Дживс", "Лилиан", "Рудольф", "Уилбур", "Бьюргард", "Блейз", "саквояж", "Библия", "кость", "трость", "окурок", "дневник", "маховичок", "ожерелье", "магия", "сокровище", "рычаг", "попугай", "платок", "Сара", "призрак", "плантация", "Крутон" };
         static readonly List<int> themeFlags = new List<int> { 2, 64, 512, 8, 16, 1, 4, 1024, 32, 256, 128, 8256, 8320, 8200, 10240, 8704, 8196, 9216, 8224, 8208, 12288, 16384, 16385, 8194, 16388, 16392, 16400, 16416, 16448, 16512 };
         private readonly SCIPackage _package;
 
-        public SaidExtractWeb(SCIPackage package)
+        public SaidColonelExtract(SCIPackage package)
         {
             _package = package;
         }
