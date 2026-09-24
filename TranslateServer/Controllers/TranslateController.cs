@@ -63,6 +63,44 @@ namespace TranslateServer.Controllers
             return Ok(new TranslateInfo(translate, comments));
         }
 
+        public class BulkSubmitRequest
+        {
+            public string Project { get; set; }
+            public List<SubmitRequest> Items { get; set; }
+        }
+
+        [HttpPost("bulk")]
+        public async Task<ActionResult> SubmitBulk([FromBody] BulkSubmitRequest request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.Project)) return NotFound();
+            if (!await HasAccessToProject(request.Project)) return NotFound();
+
+            var items = request.Items ?? new List<SubmitRequest>();
+            var volumes = new HashSet<string>();
+            int updated = 0;
+            int missing = 0;
+            foreach (var item in items)
+            {
+                var translate = await _translateService.Submit(
+                    request.Project, item.Volume, item.Number, item.Text, UserLogin, false, item.TranslateId,
+                    checkSpelling: false, touchProgress: false);
+                if (translate == null)
+                {
+                    missing++;
+                    continue;
+                }
+                updated++;
+                volumes.Add(item.Volume);
+            }
+
+            foreach (var volume in volumes)
+                await _translateService.UpdateVolumeProgress(request.Project, volume);
+            if (volumes.Count > 0)
+                await _translateService.UpdateProjectProgress(request.Project);
+
+            return Ok(new { updated, missing });
+        }
+
         public class SubmitIdRequest
         {
             public string Project { get; set; }

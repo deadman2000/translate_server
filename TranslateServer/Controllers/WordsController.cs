@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SCI_Lib;
 using SCI_Lib.Resources.Vocab;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Services;
@@ -97,6 +99,105 @@ namespace TranslateServer.Controllers
                 _resCache.ClearTranslated(project);
                 return Ok(word);
             }
+        }
+
+        public class BulkPostRequest
+        {
+            public List<PostRequest> Items { get; set; }
+        }
+
+        /// <summary>
+        /// Те же проверки, что у одиночного POST, но пакет игры читается один раз.
+        /// При ошибке база не меняется.
+        /// </summary>
+        [HttpPost("{project}/bulk")]
+        public async Task<ActionResult> PostBulk(string project, BulkPostRequest request)
+        {
+            var items = request?.Items ?? new List<PostRequest>();
+            if (items.Count == 0) return Ok(new { updated = 0 });
+
+            var package = await _resCache.LoadTranslated(project);
+            var index = CopyWordIndex(package);
+            var docs = await _words.Query(w => w.Project == project && w.IsTranslate);
+            var translateById = new Dictionary<int, string>();
+            foreach (var doc in docs)
+                translateById[doc.WordId] = doc.Text ?? "";
+
+            var planned = new List<(int Id, string Text)>();
+            foreach (var op in items)
+            {
+                if (!op.Gr.HasValue)
+                    return BadRequest(new { Message = "Group is required" });
+
+                var gr = (ushort)op.Gr.Value;
+                var id = Word.GetId(gr, (ushort)op.Cl);
+                var newWords = SplitWords(op.Words);
+                translateById.TryGetValue(id, out var previous);
+                var oldWords = SplitWords(previous);
+
+                foreach (var w in oldWords)
+                {
+                    if (newWords.Contains(w)) continue;
+                    if (index.TryGetValue(w, out var ids))
+                        ids.Remove(gr);
+                }
+
+                foreach (var w in newWords)
+                {
+                    if (package.GameEncoding.GetBytes(w).Any(c => c < 0x80))
+                        return BadRequest(new { Message = $"Word '{w}' contains wrong symbol" });
+                    if (index.TryGetValue(w, out var ids) && !ids.Contains(gr))
+                        return BadRequest(new { Message = $"Word '{w}' already exists" });
+                }
+
+                foreach (var w in newWords)
+                {
+                    if (!index.TryGetValue(w, out var ids))
+                    {
+                        ids = new HashSet<ushort>();
+                        index[w] = ids;
+                    }
+                    ids.Add(gr);
+                }
+
+                var text = string.Join(", ", newWords);
+                translateById[id] = text;
+                planned.Add((id, text));
+            }
+
+            foreach (var (id, text) in planned)
+            {
+                if (string.IsNullOrEmpty(text))
+                {
+                    await _words.Delete(w => w.Project == project && w.IsTranslate && w.WordId == id);
+                    continue;
+                }
+                await _words.Update(w => w.Project == project && w.IsTranslate && w.WordId == id)
+                    .Set(w => w.Text, text)
+                    .Upsert();
+            }
+
+            _resCache.ClearTranslated(project);
+            return Ok(new { updated = planned.Count });
+        }
+
+        private static string[] SplitWords(string words)
+        {
+            if (string.IsNullOrWhiteSpace(words)) return System.Array.Empty<string>();
+            return words.ToLower().Split(',').Select(w => w.Trim()).Where(w => w.Length > 0).ToArray();
+        }
+
+        private static Dictionary<string, HashSet<ushort>> CopyWordIndex(SCIPackage package)
+        {
+            var index = new Dictionary<string, HashSet<ushort>>();
+            foreach (var pair in package.GetWordIds())
+            {
+                var set = new HashSet<ushort>();
+                foreach (var id in pair.Value)
+                    set.Add(id);
+                index[pair.Key] = set;
+            }
+            return index;
         }
 
         private async Task<dynamic> GetWord(string project, int id)

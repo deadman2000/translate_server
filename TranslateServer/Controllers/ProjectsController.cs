@@ -102,6 +102,27 @@ namespace TranslateServer.Controllers
             return Ok(proj);
         }
 
+        /// <summary>
+        /// Все строки проекта без комментариев, кадров и проверки орфографии.
+        /// Нужен загрузчику, чтобы не ходить в каждый том отдельно.
+        /// </summary>
+        [HttpGet("{project}/sync/texts")]
+        public async Task<ActionResult> SyncTexts(string project)
+        {
+            if (!await HasAccessToProject(project)) return NotFound();
+
+            var texts = await _texts.Query(t => t.Project == project);
+            var translates = await _translates.Query(t => t.Project == project && t.NextId == null && !t.Deleted);
+            var byKey = translates.ToLookup(t => (t.Volume, t.Number));
+
+            return Ok(texts.Select(t => new
+            {
+                t.Volume,
+                Source = new { t.Text, t.Number },
+                Translates = byKey[(t.Volume, t.Number)].Select(tr => new { tr.Id, tr.Text }).ToArray()
+            }));
+        }
+
         [AuthAdmin]
         [RequestFormLimits(ValueLengthLimit = 500 * 1024 * 1024, MultipartBodyLengthLimit = 500 * 1024 * 1024)]
         [DisableRequestSizeLimit]

@@ -130,7 +130,7 @@ namespace TranslateServer.Services
             }
         }
 
-        public async Task<TextTranslate> Submit(string project, string volume, int number, string text, string author, bool approveTransfer, string prevTranslateId = null)
+        public async Task<TextTranslate> Submit(string project, string volume, int number, string text, string author, bool approveTransfer, string prevTranslateId = null, bool checkSpelling = true, bool touchProgress = true)
         {
             var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
             if (txt == null)
@@ -138,8 +138,9 @@ namespace TranslateServer.Services
 
             //text = text.TrimEnd('\r', '\n');
 
+            // Пакетная загрузка не ждёт Яндекс.Спеллер: его цикл повтора может висеть минутами.
             IEnumerable<SpellResult> spellcheck;
-            if (text != txt.Text)
+            if (checkSpelling && text != txt.Text)
                 spellcheck = await _spellcheck.Spellcheck(text);
             else
                 spellcheck = Array.Empty<SpellResult>();
@@ -197,7 +198,7 @@ namespace TranslateServer.Services
                 needUpdate = true;
             }
 
-            if (needUpdate)
+            if (needUpdate && touchProgress)
             {
                 await UpdateVolumeProgress(project, volume);
                 await UpdateProjectProgress(project);

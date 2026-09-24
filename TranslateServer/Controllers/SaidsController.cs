@@ -73,7 +73,25 @@ namespace TranslateServer.Controllers
             }
         }
 
-        [HttpGet("{project}/{script}")]
+        /// <summary>
+        /// Все Said проекта как они лежат в базе, без разбора скрипта и прогона тестов.
+        /// </summary>
+        [HttpGet("{project}/export")]
+        public async Task<ActionResult> Export(string project)
+        {
+            var saids = await _saids.Query(s => s.Project == project);
+            return Ok(saids.Select(s => new
+            {
+                s.Script,
+                s.Index,
+                s.Expression,
+                s.Patch,
+                s.Tests,
+                s.Approved
+            }));
+        }
+
+        [HttpGet("{project}/{script:int}")]
         public async Task<ActionResult> Get(string project, int script)
         {
             var saids = await _saids.Query(s => s.Project == project && s.Script == script);
@@ -123,6 +141,37 @@ namespace TranslateServer.Controllers
             var said = await _saids.Get(s => s.Project == request.Project && s.Script == request.Script && s.Index == request.Index);
             said.Validation = validation;
             return Ok(said);
+        }
+
+        public class BulkUpdateRequest
+        {
+            public List<UpdateRequest> Items { get; set; }
+        }
+
+        /// <summary>
+        /// Пакет правок: пакет игры читается один раз, а не на каждый Said.
+        /// </summary>
+        [HttpPost("bulk")]
+        public async Task<ActionResult> UpdateBulk(BulkUpdateRequest request)
+        {
+            var items = request?.Items;
+            if (items == null || items.Count == 0) return Ok(new { updated = 0 });
+
+            var project = items[0].Project;
+            var package = await _resCache.LoadTranslated(project);
+            foreach (var item in items)
+            {
+                if (item.Project != project)
+                    return BadRequest(new { Message = "Mixed projects" });
+                var validation = Validate(package, item.Patch, item.Tests);
+                await _saids.Update(s => s.Project == item.Project && s.Script == item.Script && s.Index == item.Index)
+                    .Set(s => s.Patch, item.Patch)
+                    .Set(s => s.Tests, item.Tests)
+                    .Set(s => s.IsValid, validation.Valid)
+                    .Execute();
+            }
+
+            return Ok(new { updated = items.Count });
         }
 
         public class ApproveRequest
