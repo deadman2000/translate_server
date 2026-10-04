@@ -125,6 +125,19 @@ namespace TranslateServer.Store
                 }
 
                 res.SetStrings(trStrings.ToArray());
+                
+                if (res is ResHeap)
+                {
+                    var script = package.GetResource<ResScript>(res.Number);
+                    if (script != null)
+                    {
+                        script.GetScript();
+                        var scriptBytes = script.GetPatch();
+                        if (!scriptBytes.SequenceEqual(script.GetContent()))
+                            resources.Add(script);
+                    }
+                }
+
                 resources.Add(res);
             }
             return resources;

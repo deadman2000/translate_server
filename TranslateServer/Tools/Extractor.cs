@@ -4,6 +4,7 @@ using SCI_Lib.Resources;
 using SCI_Lib.Resources.Scripts;
 using SCI_Lib.Resources.Scripts.Elements;
 using SCI_Lib.Resources.Scripts.Sections;
+using SCI_Lib.Resources.Scripts1;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -75,21 +76,39 @@ namespace TranslateServer.Tools
             volumesHash.Clear();
             foreach (var scr in _package.GetResources<ResScript>())
             {
-                var strings = scr.GetStrings();
+                var script = scr.GetScript();
+                if (script == null) continue;
+
+                // В SCI1.1 строки лежат в куче. Индексы должны совпадать с ResHeap.SetStrings.
+                string fileName;
+                string[] strings;
+                if (script is Script1)
+                {
+                    var heap = _package.GetResource<ResHeap>(scr.Number);
+                    if (heap == null) continue;
+                    strings = heap.GetStrings();
+                    fileName = heap.FileName;
+                }
+                else
+                {
+                    strings = scr.GetStrings();
+                    fileName = scr.FileName;
+                }
+
                 if (strings == null || strings.Length == 0) continue;
                 if (!strings.Any(s => !string.IsNullOrWhiteSpace(s))) continue;
-                if (volumesHash.Contains(scr.FileName)) continue;
-                Console.WriteLine(scr.FileName);
+                if (volumesHash.Contains(fileName)) continue;
+                Console.WriteLine(fileName);
 
-                volumesHash.Add(scr.FileName);
-                var volume = new Volume(_project, scr.FileName);
+                volumesHash.Add(fileName);
+                var volume = new Volume(_project, fileName);
                 await _volumes.Insert(volume);
 
                 HashSet<string> needTranslate = new();
 
-                if (scr.GetScript() is Script script)
+                if (script is Script sci0)
                 {
-                    foreach (var sec in script.Get<ClassSection>())
+                    foreach (var sec in sci0.Get<ClassSection>())
                     {
                         sec.Prepare();
                         foreach (var prop in sec.Properties)
@@ -99,10 +118,41 @@ namespace TranslateServer.Tools
                         }
                     }
 
-                    foreach (var s in script.AllStrings())
+                    foreach (var s in sci0.AllStrings())
                     {
                         if (s.XRefs.Count > 0)
                             needTranslate.Add(s.Value);
+                    }
+                }
+                else if (script is Script1 sci1)
+                {
+                    foreach (var obj in sci1.Objects)
+                    {
+                        if (obj.Id == 0xffff && obj.Super != null)
+                            obj.Prepare();
+
+                        for (int p = 0; p < obj.Properties.Length; p++)
+                        {
+                            var prop = obj.Properties[p];
+                            if (prop.StringValue == null) continue;
+                            if (p == 8 || prop.Name == "name") continue;
+                            needTranslate.Add(enc.EscapeString(prop.StringValue.Value));
+                        }
+                    }
+
+                    if (sci1.Heap.LocalVars != null)
+                    {
+                        foreach (var local in sci1.Heap.LocalVars)
+                        {
+                            if (local.StringValue != null)
+                                needTranslate.Add(enc.EscapeString(local.StringValue.Value));
+                        }
+                    }
+
+                    foreach (var s in sci1.Heap.AllStrings())
+                    {
+                        if (s.XRefs.Count > 0)
+                            needTranslate.Add(enc.EscapeString(s.Value));
                     }
                 }
 
