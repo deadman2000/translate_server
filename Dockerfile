@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
 WORKDIR /app
 
-COPY global.json nuget.config ./
+COPY global.json ./
 COPY TranslateServer/*.csproj ./TranslateServer/
 RUN dotnet restore TranslateServer/TranslateServer.csproj
 
