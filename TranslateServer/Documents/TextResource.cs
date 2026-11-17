@@ -45,6 +45,12 @@ namespace TranslateServer.Documents
 
         public bool TranslateApproved { get; set; }
 
+        /// <summary>
+        /// Строка добавлена вручную, а не извлечена из ресурсов игры.
+        /// </summary>
+        [BsonIgnoreIfDefault]
+        public bool UserText { get; set; }
+
         [BsonIgnoreIfNull]
         public double? MaxScore { get; set; }
 

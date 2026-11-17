@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Requests;
+using TranslateServer.Services;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers
@@ -21,12 +22,14 @@ namespace TranslateServer.Controllers
         private readonly TranslateStore _translate;
         private readonly VideoReferenceStore _references;
         private readonly CommentsStore _comments;
+        private readonly CommentNotifyStore _commentNotify;
         private readonly VolumesStore _volumes;
 
         public TextsController(TextsStore texts,
             TranslateStore translate,
             VideoReferenceStore references,
             CommentsStore comments,
+            CommentNotifyStore commentNotify,
             VolumesStore volumes,
             ProjectsStore projects)
         {
@@ -34,6 +37,7 @@ namespace TranslateServer.Controllers
             _translate = translate;
             _references = references;
             _comments = comments;
+            _commentNotify = commentNotify;
             _volumes = volumes;
             _projects = projects;
         }
@@ -106,6 +110,7 @@ namespace TranslateServer.Controllers
                 Volume = volume,
                 Number = last == null ? 0 : last.Number + 1,
                 Text = request?.Text ?? "",
+                UserText = true,
             };
             doc.RecalcLetters();
             await _texts.Insert(doc);
@@ -131,6 +136,7 @@ namespace TranslateServer.Controllers
 
             var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
             if (txt == null) return NotFound();
+            if (!txt.UserText) return ApiBadRequest("Only user texts can be edited");
 
             var oldLetters = txt.Letters;
             txt.Text = request?.Text ?? "";
@@ -153,6 +159,32 @@ namespace TranslateServer.Controllers
             }
 
             return Ok(txt);
+        }
+
+        [AuthAdmin]
+        [HttpDelete("{number}")]
+        public async Task<ActionResult> Delete(string project, string volume, int number)
+        {
+            if (!await HasAccessToProject(project)) return NotFound();
+
+            var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
+            if (txt == null) return NotFound();
+            if (!txt.UserText) return ApiBadRequest("Only user texts can be deleted");
+
+            var comments = await _comments.Query(c => c.Project == project && c.Volume == volume && c.Number == number);
+            foreach (var comment in comments)
+                await _commentNotify.Delete(n => n.CommentId == comment.Id);
+            if (comments.Count > 0)
+                await _comments.Delete(c => c.Project == project && c.Volume == volume && c.Number == number);
+
+            var translates = await _translate.Query(t => t.Project == project && t.Volume == volume && t.Number == number && !t.Deleted);
+            await _translate.Update(t => t.Project == project && t.Volume == volume && t.Number == number && !t.Deleted)
+                .Set(t => t.Deleted, true)
+                .ExecuteMany();
+
+            await _texts.DeleteOne(t => t.Id == txt.Id);
+
+            return Ok();
         }
     }
 }

@@ -49,8 +49,8 @@ namespace TranslateServer.Services
                 .FirstOrDefaultAsync();
 
             await _volumes.Update(v => v.Project == project && v.Code == volume)
-                .Set(v => v.Letters, total.Letters)
-                .Set(v => v.Texts, total.Count)
+                .Set(v => v.Letters, total != null ? total.Letters : 0)
+                .Set(v => v.Texts, total != null ? total.Count : 0)
                 .Execute();
         }
 
