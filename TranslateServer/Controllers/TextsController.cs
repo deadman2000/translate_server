@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System;
@@ -8,7 +7,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using TranslateServer.Documents;
 using TranslateServer.Requests;
-using TranslateServer.Services;
 using TranslateServer.Store;
 
 namespace TranslateServer.Controllers

@@ -169,27 +169,20 @@ namespace TranslateServer.Store
             ('x', 'х'),
         };
 
-        // Заменяет русские символы в скобках на аналогичные английские, чтобы движок SCI не съел скобки
+        // Заменяет русские символы во всех скобках на аналогичные английские, чтобы движок SCI не съел скобки.
+        // Скобки без строчной латиницы и цифр интерпретатор считает ремаркой и вырезает вместе с текстом.
         private static string PatchRuBrackets(string txt)
         {
-            var result = BracketsRegex().Match(txt);
-            if (result.Success)
+            return BracketsRegex().Replace(txt, match =>
             {
-                var newPart = result.Value;
+                var newPart = match.Value;
                 foreach (var (to, from) in RuEnCharsMapping)
                 {
                     newPart = newPart.Replace(from, to);
                 }
 
-                if (newPart == result.Value)
-                {
-                    return txt;
-                }
-
-                return txt.Replace(result.Value, newPart);
-            }
-
-            return txt;
+                return newPart;
+            });
         }
     }
 }
