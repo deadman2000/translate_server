@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using TranslateServer.Documents;
 using TranslateServer.Requests;
 using TranslateServer.Store;
 
@@ -18,13 +21,21 @@ namespace TranslateServer.Controllers
         private readonly TranslateStore _translate;
         private readonly VideoReferenceStore _references;
         private readonly CommentsStore _comments;
+        private readonly VolumesStore _volumes;
 
-        public TextsController(TextsStore texts, TranslateStore translate, VideoReferenceStore references, CommentsStore comments)
+        public TextsController(TextsStore texts,
+            TranslateStore translate,
+            VideoReferenceStore references,
+            CommentsStore comments,
+            VolumesStore volumes,
+            ProjectsStore projects)
         {
             _texts = texts;
             _translate = translate;
             _references = references;
             _comments = comments;
+            _volumes = volumes;
+            _projects = projects;
         }
 
         [HttpGet]
@@ -67,6 +78,81 @@ namespace TranslateServer.Controllers
                 Translates = tdict.TryGetValue(t.Number, out var tr) ? tr : null,
                 Refs = rdict.TryGetValue(t.Number, out var r) ? r : null
             }));
+        }
+
+        public class CreateTextRequest
+        {
+            public string Text { get; set; }
+        }
+
+        [AuthAdmin]
+        [HttpPost]
+        public async Task<ActionResult> Create(string project, string volume, CreateTextRequest request)
+        {
+            if (!await HasAccessToProject(project)) return NotFound();
+
+            var vol = await _volumes.Get(v => v.Project == project && v.Code == volume);
+            if (vol == null) return NotFound();
+
+            var last = await _texts.Collection
+                .Find(t => t.Project == project && t.Volume == volume)
+                .SortByDescending(t => t.Number)
+                .Limit(1)
+                .FirstOrDefaultAsync();
+
+            var doc = new TextResource
+            {
+                Project = project,
+                Volume = volume,
+                Number = last == null ? 0 : last.Number + 1,
+                Text = request?.Text ?? "",
+            };
+            doc.RecalcLetters();
+            await _texts.Insert(doc);
+
+            return Ok(new
+            {
+                Source = doc,
+                Translates = (object)null,
+                Refs = (object)null
+            });
+        }
+
+        public class UpdateTextRequest
+        {
+            public string Text { get; set; }
+        }
+
+        [AuthAdmin]
+        [HttpPost("{number}")]
+        public async Task<ActionResult> Update(string project, string volume, int number, UpdateTextRequest request)
+        {
+            if (!await HasAccessToProject(project)) return NotFound();
+
+            var txt = await _texts.Get(t => t.Project == project && t.Volume == volume && t.Number == number);
+            if (txt == null) return NotFound();
+
+            var oldLetters = txt.Letters;
+            txt.Text = request?.Text ?? "";
+            txt.RecalcLetters();
+
+            await _texts.Update(t => t.Id == txt.Id)
+                .Set(t => t.Text, txt.Text)
+                .Set(t => t.Letters, txt.Letters)
+                .Execute();
+
+            if (txt.Letters != oldLetters)
+            {
+                await _translate.Update(t => t.Project == project
+                        && t.Volume == volume
+                        && t.Number == number
+                        && t.NextId == null
+                        && !t.Deleted)
+                    .Set(t => t.Letters, txt.Letters)
+                    .ExecuteMany();
+            }
+
+            return Ok(txt);
         }
     }
 }

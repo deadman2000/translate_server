@@ -69,7 +69,11 @@ namespace TranslateServer.Store
                 var trStrings = strings.ToList();
 
                 foreach (var t in g)
+                {
+                    if (t.Number < 0 || t.Number >= trStrings.Count)
+                        continue;
                     trStrings[t.Number] = t.Text;
+                }
 
                 if (trStrings.SequenceEqual(strings)) continue; // Skip not changed
 
