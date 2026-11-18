@@ -470,7 +470,8 @@ namespace TranslateServer.Controllers
             List<dynamic> lines = new();
             foreach (var t in translates)
             {
-                var src = textsDict[t.GetCode()];
+                if (!textsDict.TryGetValue(t.GetCode(), out var src))
+                    continue;
 
                 if (LineCount(t.Text) != LineCount(src.Text))
                     lines.Add(new
